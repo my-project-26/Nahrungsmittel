@@ -339,7 +339,7 @@ async function n8n(aktion, daten, timeoutMs){
   clearTimeout(t);
   const text = await res.text();
   let j; try{ j = JSON.parse(text); }catch(e){ throw new Error('Unerwartete Antwort von n8n (HTTP '+res.status+'): '+text.slice(0,200)); }
-  if(!res.ok) throw new Error('n8n-Fehler HTTP '+res.status+': '+(j.message||text.slice(0,200)));
+  if(!res.ok) throw new Error('n8n-Fehler HTTP '+res.status+': '+(j.message||text.slice(0,200))+(res.status===500?' – Details in n8n unter „Executions“ (meist Zeitüberschreitung, einfach erneut versuchen).':''));
   if(j.fehler) throw new Error(j.fehler);
   return j;
 }
