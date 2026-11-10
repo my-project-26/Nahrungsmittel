@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kochplaner – Angebote & Rezepte</title>
+<style>
+  :root{
+    --bg:#f6f3ec; --card:#fffdf8; --ink:#23281f; --mut:#6b7062; --line:#e3ddcf;
+    --gr:#3f6b3a; --gr2:#e4eedc; --or:#c4651c; --or2:#fbe9d8; --rot:#b3261e; --rot2:#f8dedb;
+    --r:14px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding-bottom:80px}
+  header{position:sticky;top:0;z-index:5;background:var(--gr);color:#fff;padding:14px 16px 10px}
+  header h1{margin:0;font-size:20px;letter-spacing:.2px}
+  header .sub{font-size:13px;opacity:.85}
+  nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#fff;border-top:1px solid var(--line);z-index:6;padding-bottom:env(safe-area-inset-bottom)}
+  nav button{flex:1;border:0;background:none;padding:10px 4px 8px;font-size:12px;color:var(--mut);cursor:pointer}
+  nav button span{display:block;font-size:20px}
+  nav button.on{color:var(--gr);font-weight:600}
+  main{max-width:820px;margin:0 auto;padding:14px}
+  section{display:none} section.on{display:block}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:12px}
+  h2{font-size:18px;margin:4px 0 10px} h3{font-size:16px;margin:0 0 8px}
+  label{display:block;font-size:14px;color:var(--mut);margin:10px 0 4px}
+  input[type=text],input[type=number],input[type=date],input[type=url],select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff}
+  .row{display:flex;gap:10px;flex-wrap:wrap} .row>*{flex:1;min-width:130px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 12px;font-size:14px;cursor:pointer;user-select:none}
+  .chip.on{background:var(--gr);border-color:var(--gr);color:#fff}
+  .chip.nein{background:var(--rot);border-color:var(--rot);color:#fff;text-decoration:line-through}
+  .chip.heute{background:var(--or);border-color:var(--or);color:#fff;text-decoration:line-through}
+  .chip.gesperrt{opacity:.75;cursor:default}
+  .lmgruppe{font-size:13px;font-weight:600;color:var(--mut);margin:10px 0 6px}
+  .btn{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:600;cursor:pointer;background:var(--gr);color:#fff}
+  .btn.sek{background:#fff;color:var(--gr);border:1px solid var(--gr)}
+  .btn.klein{padding:6px 10px;font-size:13px}
+  .btn:disabled{opacity:.5;cursor:default}
+  .mut{color:var(--mut);font-size:13px}
+  .markt{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}
+  .markt:last-child{border-bottom:0}
+  .markt input{margin-top:4px;width:20px;height:20px;accent-color:var(--gr)}
+  .markt .info{flex:1}
+  .badge{display:inline-block;font-size:12px;border-radius:6px;padding:2px 7px;margin:2px 4px 2px 0;font-weight:600}
+  .ok{background:var(--gr2);color:var(--gr)} .warn{background:var(--or2);color:var(--or)} .bad{background:var(--rot2);color:var(--rot)} .neu{background:#e7e9f5;color:#3b4a8a}
+  .hinweis{background:var(--or2);border-left:4px solid var(--or);padding:8px 10px;border-radius:8px;font-size:13px;margin-top:6px}
+  .fehler{background:var(--rot2);border-left:4px solid var(--rot);padding:8px 10px;border-radius:8px;font-size:14px;margin:8px 0}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  td,th{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{font-size:12px;color:var(--mut);font-weight:600}
+  .preis{font-weight:700;white-space:nowrap}
+  .rezept h3{font-size:18px}
+  .rezept ul,.rezept ol{padding-left:20px;margin:6px 0}
+  .rezept li{margin:3px 0}
+  .naehr{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .naehr div{background:var(--gr2);border-radius:8px;padding:6px 10px;font-size:13px}
+  .lade{display:inline-block;width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:dreh 1s linear infinite}
+  .btn.sek .lade{border-color:var(--gr);border-top-color:transparent}
+  @keyframes dreh{to{transform:rotate(360deg)}}
+  .mhd-rot{color:var(--rot);font-weight:700} .mhd-or{color:var(--or);font-weight:700} .mhd-gr{color:var(--gr)}
+  .vorschau{max-width:100%;max-height:260px;border-radius:10px;margin-top:8px;display:block}
+  .x{border:0;background:none;color:var(--mut);cursor:pointer;font-size:18px}
+  .filterleiste{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  details summary{cursor:pointer;font-weight:600}
+</style>
+</head>
+<body>
+<header>
+  <h1>🥕 Kochplaner</h1>
+  <div class="sub" id="kopfStatus">Angebote aus deinen Märkten → passende Rezepte</div>
+</header>
+
+<main>
+  <!-- ========== REZEPTE ========== -->
+  <section id="tab-rezepte" class="on">
+    <div class="card">
+      <h2>Rezepte vorschlagen</h2>
+      <div class="row">
+        <div><label>Wie viele Vorschläge?</label>
+          <select id="rzAnzahl"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select></div>
+        <div><label>Mahlzeit</label>
+          <select id="rzMahlzeit"><option>Mittagessen</option><option selected>Abendessen</option><option>Frühstück</option><option>Backen / Dessert</option><option>Festessen</option></select></div>
+      </div>
+      <details style="margin-top:12px" id="heuteDetails">
+        <summary>🚫 Heute ohne … <span class="mut" id="heuteZahl"></span></summary>
+        <div class="mut" style="margin:6px 0">Nur für diese Rezeptsuche. Rot = dauerhaft ausgeschlossen (im Profil änderbar).</div>
+        <div id="ausschlussHeute"></div>
+        <button class="btn sek klein" style="margin-top:8px" onclick="heuteNicht=[];ausschlussZeigen()">Auswahl zurücksetzen</button>
+      </details>
+      <label>Besonderer Wunsch (optional)</label>
+      <input type="text" id="rzWunsch" placeholder="z. B. etwas mit Kürbis, keine Pilze, Kinder mögen es mild …">
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="btnRezepte" onclick="rezepteHolen()">🍳 Rezepte erstellen</button>
+      </div>
+      <div class="mut" id="rzInfo" style="margin-top:8px"></div>
+    </div>
+    <div id="rezeptListe"></div>
+  </section>
+
+  <!-- ========== ANGEBOTE ========== -->
+  <section id="tab-angebote">
+    <div class="card">
+      <h2>Angebote</h2>
+      <div class="mut" id="angStand">Noch keine Angebote geladen.</div>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="btnAktualisieren" onclick="angeboteAktualisieren()">🔄 Angebote aktualisieren</button>
+        <button class="btn sek" onclick="zeigeTab('foto')">📷 Flyer-Foto hinzufügen</button>
+      </div>
+      <div id="angFehler"></div>
+      <div id="quellenListe" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
+      <div class="filterleiste">
+        <select id="angFilterMarkt" onchange="angeboteZeigen()" style="flex:1"></select>
+        <input type="text" id="angSuche" placeholder="Suchen …" oninput="angeboteZeigen()" style="flex:2">
+      </div>
+      <div id="angebotTabelle"></div>
+    </div>
+  </section>
+
+  <!-- ========== FOTO (Flyer + Vorrat) ========== -->
+  <section id="tab-foto">
+    <div class="card">
+      <h2>📷 Flyer oder Prospekt fotografieren</h2>
+      <div class="mut">Für Märkte ohne Online-Text (Lidl, Netto, Penny, denn's, Biowelt, Wochenmarkt) oder als Notlösung. Ein Screenshot vom Online-Prospekt geht genauso.</div>
+      <label>Markt</label>
+      <select id="flyerMarkt"></select>
+      <label>Foto</label>
+      <input type="file" id="flyerDatei" accept="image/*" capture="environment" onchange="vorschauZeigen(this,'flyerVorschau')">
+      <img id="flyerVorschau" class="vorschau" style="display:none">
+      <div style="margin-top:10px"><button class="btn" id="btnFlyer" onclick="flyerAuslesen()">Angebote auslesen</button></div>
+      <div class="hinweis">Preise aus Fotos werden zweimal unabhängig gelesen und mit dem Grundpreis nachgerechnet. Trotzdem gilt: <b>jedes Angebot erst nach deiner Bestätigung</b> in Rezepten verwenden.</div>
+      <div id="flyerErgebnis"></div>
+    </div>
+  </section>
+
+  <!-- ========== VORRAT ========== -->
+  <section id="tab-vorrat">
+    <div class="card">
+      <h2>🧊 Vorrat</h2>
+      <div class="mut">Lebensmittel, die schnell verderben oder selten genutzt werden. Was bald abläuft, wird in Rezepten bevorzugt.</div>
+      <label>Foto von Lebensmitteln (am besten mit sichtbarem MHD)</label>
+      <input type="file" id="vorratDatei" accept="image/*" capture="environment" onchange="vorschauZeigen(this,'vorratVorschau')">
+      <img id="vorratVorschau" class="vorschau" style="display:none">
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" id="btnVorratFoto" onclick="vorratFotoAuslesen()">Foto auslesen</button>
+        <button class="btn sek" onclick="vorratManuell()">＋ Manuell hinzufügen</button>
+      </div>
+      <div id="vorratErkannt"></div>
+    </div>
+    <div class="card"><div id="vorratListe"></div></div>
+  </section>
+
+  <!-- ========== EINSTELLUNGEN ========== -->
+  <section id="tab-einst">
+    <div class="card">
+      <h2>🛒 Wo kaufst du ein?</h2>
+      <div class="mut">Nur angehakte Märkte werden abgerufen und für Rezepte verwendet.</div>
+      <div id="marktListe"></div>
+    </div>
+
+    <div class="card">
+      <h2>🔌 Küchengeräte</h2>
+      <div class="chips" id="geraeteChips"></div>
+    </div>
+
+    <div class="card">
+      <h2>👨‍👩‍👧 Haushalt</h2>
+      <div class="row">
+        <div><label>Erwachsene</label><input type="number" id="pErw" min="0" max="20"></div>
+        <div><label>Appetit Erwachsene</label><select id="pErwApp"><option value="wenig">isst wenig</option><option value="normal">normal</option><option value="viel">isst viel</option></select></div>
+      </div>
+      <div class="row">
+        <div><label>Kinder</label><input type="number" id="pKind" min="0" max="20"></div>
+        <div><label>Appetit Kinder</label><select id="pKindApp"><option value="wenig">isst wenig</option><option value="normal">normal</option><option value="viel">isst viel</option></select></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🥗 Einkauf & Ernährung</h2>
+      <label>Bio</label>
+      <div class="chips" id="bioChips"></div>
+      <label>Ernährungsform (mehrere möglich)</label>
+      <div class="chips" id="ernChips"></div>
+      <label>Jahreszeit</label>
+      <div class="chips" id="saisonChips"></div>
+      <label>Kochzeit</label>
+      <div class="chips" id="zeitChips"></div>
+    </div>
+
+    <div class="card">
+      <h2>🚫 Das essen wir nicht</h2>
+      <div class="mut">Antippen = wird <b>nie</b> in Rezepten verwendet (Abneigung, Unverträglichkeit, Allergie). Gilt dauerhaft.</div>
+      <div id="ausschlussProfil" style="margin-top:8px"></div>
+      <label>Eigenes Lebensmittel zur Liste hinzufügen</label>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="eigenesLm" placeholder="z. B. Kapern" onkeydown="if(event.key==='Enter')eigenesHinzu()">
+        <button class="btn klein" onclick="eigenesHinzu()">＋</button>
+      </div>
+      <div class="hinweis">Bei echten Allergien zusätzlich immer die Zutatenliste der gekauften Produkte prüfen – Spuren und versteckte Zutaten kann die App nicht erkennen.</div>
+    </div>
+
+    <div class="card">
+      <h2>⚙️ Verbindung zu n8n</h2>
+      <label>Webhook-Adresse</label>
+      <input type="url" id="n8nUrl" placeholder="http://localhost:5678/webhook/koch">
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn sek" id="btnTest" onclick="verbindungTesten()">Verbindung testen</button>
+      </div>
+      <div id="testErgebnis" class="mut" style="margin-top:8px"></div>
+      <div class="mut" style="margin-top:8px">n8n muss auf deinem Laptop laufen und der Workflow „Kochplaner“ aktiv sein. Am besten Chrome nutzen und die Abfrage „Zugriff auf lokales Netzwerk“ erlauben.</div>
+    </div>
+
+    <div class="card">
+      <details><summary>Daten zurücksetzen</summary>
+        <p class="mut">Löscht Einstellungen, Vorrat, Angebote und Rezepte in diesem Browser.</p>
+        <button class="btn sek klein" onclick="if(confirmLoeschen()){localStorage.clear();location.reload()}">Alles löschen</button>
+      </details>
+    </div>
+  </section>
+</main>
+
+<nav>
+  <button data-tab="rezepte" class="on" onclick="zeigeTab('rezepte')"><span>🍳</span>Rezepte</button>
+  <button data-tab="angebote" onclick="zeigeTab('angebote')"><span>🏷️</span>Angebote</button>
+  <button data-tab="foto" onclick="zeigeTab('foto')"><span>📷</span>Flyer</button>
+  <button data-tab="vorrat" onclick="zeigeTab('vorrat')"><span>🧊</span>Vorrat</button>
+  <button data-tab="einst" onclick="zeigeTab('einst')"><span>⚙️</span>Profil</button>
+</nav>
+
+<script>
+/* ============================================================
+   Stammdaten
+   ============================================================ */
+const MAERKTE = [
+  { id:'aldi',      name:'ALDI SÜD',      ort:'Niederwiesenstraße 33 u. a.', art:'text',     prospekt:'https://www.aldi-sued.de/de/angebote.html' },
+  { id:'lidl',      name:'Lidl',          ort:'Beim Enggäßle 1 u. a.',       art:'prospekt', prospekt:'https://www.lidl.de/c/billiger-montag/a10006065' },
+  { id:'norma',     name:'NORMA',         ort:'Harzerstraße 10',             art:'text',     prospekt:'https://www.norma-online.de/de/angebote/onlineprospekt/' },
+  { id:'edeka',     name:'EDEKA',         ort:'Haas / Schönauer / E center', art:'text',     prospekt:'https://www.edeka.de/eh/angebote.jsp' },
+  { id:'rewe',      name:'REWE',          ort:'Am Krebsgraben 5',            art:'test',     prospekt:'https://www.rewe.de/angebote/' },
+  { id:'kaufland',  name:'Kaufland',      ort:'Neuer Markt 1',               art:'test',     prospekt:'https://filiale.kaufland.de/prospekte.html' },
+  { id:'netto',     name:'Netto',         ort:'Kirnacher Str. 75 u. a.',     art:'prospekt', prospekt:'https://www.netto-online.de/ueber-netto/Online-Prospekte.chtm' },
+  { id:'penny',     name:'PENNY',         ort:'Sturmbühlstraße 134',         art:'prospekt', prospekt:'https://www.penny.de/angebote#handout' },
+  { id:'denns',     name:"denn's BioMarkt", ort:'Bad Dürrheim',              art:'prospekt', prospekt:'https://www.biomarkt.de/' },
+  { id:'biowelt',   name:'Biowelt Natur und Fein', ort:'Herdstraße 9',       art:'foto',     prospekt:'' },
+  { id:'wochenmarkt', name:'Wochenmarkt Villingen', ort:'Münsterplatz, Mi + Sa', art:'foto', prospekt:'' }
+];
+const GERAETE = ['Herd','Backofen','Thermomix','Airfryer','Mikrowelle','Slow Cooker','Schnellkochtopf','Grill','Dampfgarer','Wok','Mixer'];
+const BIO = [['bio','Möglichst Bio'],['normal','Normal'],['egal','Egal']];
+const ERN = ['Eiweißreich','Low Fat','Low Carb','Vegetarisch','Vegan','Kalorienarm','Kinderfreundlich','Glutenfrei','Laktosefrei'];
+const SAISON = [['auto','Automatisch'],['Frühling','Frühling'],['Sommer','Sommer'],['Herbst','Herbst'],['Winter','Winter']];
+const ZEIT = [['schnell','Schnell (≤ 20 Min.)'],['normal','Normal (≤ 45 Min.)'],['lang','Darf dauern (Festessen)']];
+
+const LEBENSMITTEL = {
+  'Gemüse': ['Zwiebeln','Knoblauch','Paprika','Tomaten','Gurke','Möhren','Kartoffeln','Süßkartoffeln','Brokkoli','Blumenkohl','Rosenkohl','Grünkohl','Weißkohl','Rotkohl','Spinat','Zucchini','Aubergine','Kürbis','Pilze','Mais','Erbsen','Bohnen','Lauch','Sellerie','Fenchel','Rote Bete','Spargel','Radieschen','Oliven','Avocado'],
+  'Obst': ['Äpfel','Bananen','Birnen','Orangen','Zitronen','Erdbeeren','Beeren','Trauben','Ananas','Mango','Kiwi','Rosinen'],
+  'Fleisch & Fisch': ['Rind','Schwein','Hähnchen','Pute','Lamm','Hackfleisch','Speck','Wurst','Schinken','Lachs','Thunfisch','Weißfisch','Garnelen','Muscheln'],
+  'Milch & Ei': ['Milch','Sahne','Butter','Käse','Frischkäse','Feta','Mozzarella','Parmesan','Joghurt','Quark','Eier'],
+  'Getreide': ['Weizen / Gluten','Nudeln','Reis','Brot','Haferflocken','Couscous','Quinoa'],
+  'Hülsenfrüchte & Nüsse': ['Linsen','Kichererbsen','Tofu','Soja','Erdnüsse','Haselnüsse','Walnüsse','Mandeln','Cashews','Sesam'],
+  'Kräuter & Gewürze': ['Koriander','Petersilie','Dill','Basilikum','Chili / scharf','Curry','Kreuzkümmel','Ingwer','Senf','Meerrettich'],
+  'Sonstiges': ['Honig','Kokos','Schokolade','Alkohol / Wein']
+};
+let heuteNicht = [];   // nur für die aktuelle Rezeptsuche
+
+const STANDARD_PROFIL = {
+  ausschluss:[], eigene:[],
+  maerkte:['aldi','lidl','norma','edeka','rewe','kaufland'],
+  geraete:['Herd','Backofen'],
+  erw:2, erwApp:'normal', kind:0, kindApp:'normal',
+  bio:'egal', ern:[], saison:'auto', zeit:'normal',
+  n8nUrl:'http://localhost:5678/webhook/koch'
+};
+
+/* ============================================================
+   Speicher
+   ============================================================ */
+function laden(k, std){ try{ const v = localStorage.getItem('kp_'+k); return v ? JSON.parse(v) : std; }catch(e){ return std; } }
+function speichern(k, v){ try{ localStorage.setItem('kp_'+k, JSON.stringify(v)); }catch(e){ console.warn('Speichern fehlgeschlagen', e); } }
+
+let profil   = Object.assign({}, STANDARD_PROFIL, laden('profil', {}));
+if(profil.nicht){ profil.nicht.split(',').map(x=>x.trim()).filter(Boolean).forEach(x=>{ if(!profil.eigene.includes(x)) profil.eigene.push(x); if(!profil.ausschluss.includes(x)) profil.ausschluss.push(x); }); delete profil.nicht; }
+let angDaten = laden('angebote', { stand:null, quellen:[], angebote:[], prospektLinks:{} });
+let fotoAng  = laden('fotoAngebote', []);   // Angebote aus Flyer-Fotos
+let vorrat   = laden('vorrat', []);
+let rezepte  = laden('rezepte', []);
+
+/* ============================================================
+   Hilfsfunktionen
+   ============================================================ */
+const $ = id => document.getElementById(id);
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function euro(p){ if(p===null||p===undefined||p==='') return ''; const n = Number(p); return isNaN(n) ? esc(p) : n.toFixed(2).replace('.',',')+' €'; }
+function marktName(id){ const m = MAERKTE.find(x=>x.id===id); return m ? m.name : id; }
+function marktArt(id){
+  const q = (angDaten.quellen||[]).find(x=>x.markt===id);
+  if(q && q.status==='text') return 'text';
+  const m = MAERKTE.find(x=>x.id===id); return m ? m.art : 'foto';
+}
+function prospektLink(id){
+  if(angDaten.prospektLinks && angDaten.prospektLinks[id]) return angDaten.prospektLinks[id];
+  const m = MAERKTE.find(x=>x.id===id); return m ? m.prospekt : '';
+}
+function tageBis(datum){
+  if(!datum) return null;
+  const d = new Date(datum+'T00:00:00'); if(isNaN(d)) return null;
+  const h = new Date(); h.setHours(0,0,0,0);
+  return Math.round((d - h)/86400000);
+}
+function heuteISO(){ const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function aktuelleSaison(){
+  if(profil.saison && profil.saison!=='auto') return profil.saison;
+  const m = new Date().getMonth()+1;
+  return m>=3&&m<=5 ? 'Frühling' : m>=6&&m<=8 ? 'Sommer' : m>=9&&m<=11 ? 'Herbst' : 'Winter';
+}
+function confirmLoeschen(){ return window.confirm('Wirklich alles löschen?'); }
+function ladeKnopf(btn, an, text){
+  if(an){ btn.dataset.t = btn.innerHTML; btn.innerHTML = '<span class="lade"></span> '+(text||'Bitte warten …'); btn.disabled = true; }
+  else { btn.innerHTML = btn.dataset.t || btn.innerHTML; btn.disabled = false; }
+}
+
+/* ============================================================
+   n8n-Verbindung
+   ============================================================ */
+async function n8n(aktion, daten, timeoutMs){
+  const url = (profil.n8nUrl||'').trim();
+  if(!url) throw new Error('Keine n8n-Adresse eingetragen (Profil → Verbindung zu n8n).');
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), timeoutMs || 300000);
+  let res;
+  try{
+    res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(Object.assign({aktion}, daten||{})), signal: ctrl.signal });
+  }catch(e){
+    clearTimeout(t);
+    if(e.name==='AbortError') throw new Error('Zeitüberschreitung – n8n hat zu lange gebraucht.');
+    throw new Error('n8n nicht erreichbar. Läuft n8n auf dem Laptop und ist der Workflow aktiv? ('+e.message+')');
+  }
+  clearTimeout(t);
+  const text = await res.text();
+  let j; try{ j = JSON.parse(text); }catch(e){ throw new Error('Unerwartete Antwort von n8n (HTTP '+res.status+'): '+text.slice(0,200)); }
+  if(!res.ok) throw new Error('n8n-Fehler HTTP '+res.status+': '+(j.message||text.slice(0,200)));
+  if(j.fehler) throw new Error(j.fehler);
+  return j;
+}
+
+async function verbindungTesten(){
+  const btn = $('btnTest'); ladeKnopf(btn,true,'Teste …');
+  try{
+    const j = await n8n('ping', {}, 20000);
+    $('testErgebnis').innerHTML = '<span class="badge ok">✅ Verbunden</span> '+esc(j.info||'');
+  }catch(e){
+    $('testErgebnis').innerHTML = '<div class="fehler">'+esc(e.message)+'</div>';
+  }
+  ladeKnopf(btn,false);
+}
+
+/* ============================================================
+   Tabs
+   ============================================================ */
+function zeigeTab(t){
+  document.querySelectorAll('section').forEach(s=>s.classList.toggle('on', s.id==='tab-'+t));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on', b.dataset.tab===t));
+  window.scrollTo(0,0);
+  if(t==='angebote') angeboteZeigen();
+  if(t==='vorrat') vorratZeigen();
+  if(t==='foto') flyerMarktListe();
+}
+
+/* ============================================================
+   Profil / Einstellungen
+   ============================================================ */
+function chipGruppe(elId, optionen, istMulti, schluessel){
+  const el = $(elId); el.innerHTML='';
+  optionen.forEach(o=>{
+    const [wert, text] = Array.isArray(o) ? o : [o,o];
+    const c = document.createElement('div'); c.className='chip'; c.textContent=text;
+    const aktiv = istMulti ? (profil[schluessel]||[]).includes(wert) : profil[schluessel]===wert;
+    if(aktiv) c.classList.add('on');
+    c.onclick = ()=>{
+      if(istMulti){
+        const arr = profil[schluessel]||[];
+        profil[schluessel] = arr.includes(wert) ? arr.filter(x=>x!==wert) : arr.concat(wert);
+      } else profil[schluessel] = wert;
+      speichern('profil', profil); chipGruppe(elId, optionen, istMulti, schluessel); kopfStatus();
+    };
+    el.appendChild(c);
+  });
+}
+
+function marktListeZeigen(){
+  const el = $('marktListe'); el.innerHTML='';
+  MAERKTE.forEach(m=>{
+    const art = marktArt(m.id);
+    const an = profil.maerkte.includes(m.id);
+    let status = '';
+    if(art==='text') status = '<span class="badge ok">✅ Preise geprüft (Text von der Händlerseite)</span>';
+    else if(art==='test') status = '<span class="badge neu">🧪 Wird getestet – Abruf evtl. blockiert</span>';
+    else if(art==='prospekt') status = '<span class="badge warn">⚠️ Nur Prospekt</span>';
+    else status = '<span class="badge warn">📷 Nur per Foto</span>';
+    let hinweis = '';
+    if(art==='prospekt' || art==='test'){
+      const link = prospektLink(m.id);
+      hinweis = '<div class="hinweis">⚠️ <b>Preis bitte sicherheitshalber selbst prüfen.</b> Angebote dieses Markts werden aus dem Prospekt gelesen (Foto/Screenshot).'+
+        (link ? ' <a href="'+esc(link)+'" target="_blank" rel="noopener">→ Aktuellen Prospekt öffnen</a>' : '')+'</div>';
+    } else if(art==='foto'){
+      hinweis = '<div class="hinweis">Kein Online-Prospekt. Angebote nur per Foto vom Handzettel – Preis bitte selbst prüfen.</div>';
+    }
+    const div = document.createElement('div'); div.className='markt';
+    div.innerHTML = '<input type="checkbox" '+(an?'checked':'')+'><div class="info"><b>'+esc(m.name)+'</b> <span class="mut">'+esc(m.ort)+'</span><br>'+status+hinweis+'</div>';
+    div.querySelector('input').onchange = e=>{
+      profil.maerkte = e.target.checked ? Array.from(new Set(profil.maerkte.concat(m.id))) : profil.maerkte.filter(x=>x!==m.id);
+      speichern('profil', profil); kopfStatus();
+    };
+    el.appendChild(div);
+  });
+}
+
+function profilFelderBinden(){
+  const felder = [['pErw','erw','num'],['pErwApp','erwApp'],['pKind','kind','num'],['pKindApp','kindApp'],['n8nUrl','n8nUrl']];
+  felder.forEach(([id,k,typ])=>{
+    const el = $(id); el.value = profil[k] ?? '';
+    el.addEventListener('change', ()=>{ profil[k] = typ==='num' ? Math.max(0, parseInt(el.value||'0',10)) : el.value; speichern('profil', profil); kopfStatus(); });
+  });
+}
+
+function kopfStatus(){
+  const p = profil.erw + profil.kind;
+  const stand = angDaten.stand ? new Date(angDaten.stand).toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'}) : '–';
+  $('kopfStatus').textContent = p+' Pers. · '+aktuelleSaison()+' · '+profil.maerkte.length+' Märkte · Angebote: '+stand;
+}
+
+/* ============================================================
+   Angebote
+   ============================================================ */
+function alleAngebote(){
+  const server = (angDaten.angebote||[]).map(a=>Object.assign({}, a, {herkunft:'online'}));
+  const foto = fotoAng.map(a=>Object.assign({}, a, {herkunft:'foto'}));
+  const heute = heuteISO();
+  return server.concat(foto).filter(a=> !a.gueltigBis || a.gueltigBis >= heute);
+}
+function istVerwendbar(a){
+  // Text-Angebote mit verifiziertem Preis oder vom Nutzer bestätigte Foto-Angebote
+  return (a.quelle==='text' && a.geprueft) || a.bestaetigt === true;
+}
+
+function letzterSonntag(){
+  const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - d.getDay()); return d;
+}
+function angeboteVeraltet(){
+  if(!angDaten.stand) return true;
+  const st = new Date(angDaten.stand);
+  const d = new Date(); d.setHours(0,0,0,0);
+  const mittwoch = new Date(d); mittwoch.setDate(d.getDate() - ((d.getDay()+4)%7));
+  const grenze = letzterSonntag() > mittwoch ? letzterSonntag() : mittwoch;
+  return st < grenze;
+}
+
+async function angeboteBeimStartLaden(){
+  if(!profil.n8nUrl) return;
+  try{
+    const j = await n8n('angebote', { maerkte: profil.maerkte }, 30000);
+    if(j && j.stand){ angDaten = j; speichern('angebote', angDaten); }
+    kopfStatus(); marktListeZeigen();
+    if(angeboteVeraltet()) angeboteAktualisieren(true);
+  }catch(e){
+    console.info('Angebote beim Start nicht geladen:', e.message);
+  }
+}
+
+async function angeboteAktualisieren(still){
+  const btn = $('btnAktualisieren'); ladeKnopf(btn,true,'Hole Angebote … (1–3 Min.)');
+  $('angFehler').innerHTML='';
+  try{
+    const j = await n8n('aktualisieren', { maerkte: profil.maerkte }, 600000);
+    angDaten = j; speichern('angebote', angDaten);
+    kopfStatus(); marktListeZeigen(); angeboteZeigen();
+  }catch(e){
+    if(!still) $('angFehler').innerHTML = '<div class="fehler">'+esc(e.message)+'</div>';
+  }
+  ladeKnopf(btn,false);
+}
+
+function quellenZeigen(){
+  const el = $('quellenListe');
+  const q = (angDaten.quellen||[]).filter(x=>profil.maerkte.includes(x.markt));
+  if(!q.length){ el.innerHTML=''; return; }
+  el.innerHTML = q.map(x=>{
+    let b = x.status==='text' ? '<span class="badge ok">✅ '+x.anzahl+' Angebote</span>'
+          : x.status==='fehler' ? '<span class="badge bad">❌ '+esc(x.fehler||'Fehler')+'</span>'
+          : '<span class="badge warn">⚠️ nur Prospekt – per Foto</span>';
+    if(x.verworfen) b += ' <span class="badge neu">'+x.verworfen+' verworfen (Preis nicht eindeutig)</span>';
+    return '<div style="margin:4px 0"><b>'+esc(marktName(x.markt))+'</b> '+b+'</div>';
+  }).join('');
+}
+
+function angeboteZeigen(){
+  $('angStand').textContent = angDaten.stand ? 'Stand: '+new Date(angDaten.stand).toLocaleString('de-DE') : 'Noch keine Angebote geladen.';
+  quellenZeigen();
+  const sel = $('angFilterMarkt'); const alt = sel.value;
+  sel.innerHTML = '<option value="">Alle meine Märkte</option>' + profil.maerkte.map(id=>'<option value="'+id+'">'+esc(marktName(id))+'</option>').join('');
+  sel.value = alt;
+  const f = sel.value, s = $('angSuche').value.trim().toLowerCase();
+  const liste = alleAngebote().filter(a=>profil.maerkte.includes(a.markt) && (!f||a.markt===f) && (!s||(a.produkt||'').toLowerCase().includes(s)));
+  if(!liste.length){ $('angebotTabelle').innerHTML='<div class="mut">Keine Angebote. Tippe auf „Angebote aktualisieren“ oder füge ein Flyer-Foto hinzu.</div>'; return; }
+  liste.sort((a,b)=> (a.markt||'').localeCompare(b.markt||'') || (a.produkt||'').localeCompare(b.produkt||''));
+  let html = '<table><tr><th>Produkt</th><th>Markt</th><th>Preis</th><th>Status</th></tr>';
+  liste.forEach(a=>{
+    let st;
+    if(a.quelle==='text' && a.geprueft) st = '<span class="badge ok">✅ geprüft</span>';
+    else if(a.bestaetigt) st = '<span class="badge ok">✔︎ von dir bestätigt</span>';
+    else st = '<span class="badge '+(a.sicherheit==='unsicher'?'bad':'warn')+'">⚠️ prüfen</span>'+
+              (a.herkunft==='foto' ? ' <button class="btn klein sek" onclick="fotoBestaetigen(\''+a.id+'\')">Preis stimmt</button>' : '');
+    html += '<tr><td>'+esc(a.produkt)+'<div class="mut">'+esc(a.menge||'')+(a.grundpreis?' · '+esc(a.grundpreis):'')+
+            (a.gueltigVon||a.gueltigBis ? ' · '+esc(datumKurz(a.gueltigVon))+'–'+esc(datumKurz(a.gueltigBis)) : '')+'</div></td>'+
+            '<td>'+esc(marktName(a.markt))+'</td><td class="preis">'+euro(a.preis)+'</td><td>'+st+
+            (a.herkunft==='foto' ? ' <button class="x" title="Entfernen" onclick="fotoEntfernen(\''+a.id+'\')">×</button>' : '')+'</td></tr>';
+  });
+  html += '</table>';
+  $('angebotTabelle').innerHTML = html;
+}
+function datumKurz(d){ if(!d) return ''; const p = d.split('-'); return p.length===3 ? p[2]+'.'+p[1]+'.' : d; }
+function fotoBestaetigen(id){ const a = fotoAng.find(x=>x.id===id); if(a){ a.bestaetigt=true; speichern('fotoAngebote', fotoAng); angeboteZeigen(); } }
+function fotoEntfernen(id){ fotoAng = fotoAng.filter(x=>x.id!==id); speichern('fotoAngebote', fotoAng); angeboteZeigen(); }
+
+/* ============================================================
+   Bilder verkleinern
+   ============================================================ */
+function vorschauZeigen(input, imgId){
+  const f = input.files && input.files[0]; const img = $(imgId);
+  if(!f){ img.style.display='none'; return; }
+  img.src = URL.createObjectURL(f); img.style.display='block';
+}
+function bildAlsBase64(datei, maxKante){
+  return new Promise((ok, fehler)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const k = Math.min(1, (maxKante||1800)/Math.max(img.width, img.height));
+      const c = document.createElement('canvas'); c.width = Math.round(img.width*k); c.height = Math.round(img.height*k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      const url = c.toDataURL('image/jpeg', 0.88);
+      ok(url.split(',')[1]);
+    };
+    img.onerror = ()=>fehler(new Error('Bild konnte nicht gelesen werden.'));
+    img.src = URL.createObjectURL(datei);
+  });
+}
+
+/* ============================================================
+   Flyer-Foto
+   ============================================================ */
+function flyerMarktListe(){
+  const sel = $('flyerMarkt'); const alt = sel.value;
+  sel.innerHTML = MAERKTE.map(m=>'<option value="'+m.id+'">'+esc(m.name)+'</option>').join('');
+  sel.value = alt || 'lidl';
+}
+async function flyerAuslesen(){
+  const f = $('flyerDatei').files[0];
+  if(!f){ $('flyerErgebnis').innerHTML='<div class="fehler">Bitte zuerst ein Foto auswählen.</div>'; return; }
+  const btn = $('btnFlyer'); ladeKnopf(btn,true,'Lese Prospekt (2 Durchgänge) …');
+  $('flyerErgebnis').innerHTML='';
+  try{
+    const bild = await bildAlsBase64(f, 2000);
+    const markt = $('flyerMarkt').value;
+    const j = await n8n('flyer', { markt, bild, mime:'image/jpeg', heute: heuteISO() }, 300000);
+    const neu = (j.angebote||[]).map((a,i)=>Object.assign({}, a, { id:'f'+Date.now()+'_'+i, markt, quelle:'foto', geprueft:false, bestaetigt:false }));
+    fotoAng = fotoAng.concat(neu); speichern('fotoAngebote', fotoAng);
+    const unsicher = neu.filter(a=>a.sicherheit==='unsicher').length;
+    $('flyerErgebnis').innerHTML = '<div class="card" style="margin-top:10px"><b>'+neu.length+' Angebote erkannt</b>'+
+      (unsicher ? ' – davon <span class="badge bad">'+unsicher+' unsicher</span>' : '')+
+      '<div class="mut">Bitte unter „Angebote“ jeden Preis mit „Preis stimmt“ bestätigen. Erst dann nutzt die App ihn für Rezepte.</div>'+
+      '<div style="margin-top:8px"><button class="btn klein" onclick="zeigeTab(\'angebote\')">Zu den Angeboten</button></div></div>';
+    $('flyerDatei').value=''; $('flyerVorschau').style.display='none';
+  }catch(e){
+    $('flyerErgebnis').innerHTML = '<div class="fehler">'+esc(e.message)+'</div>';
+  }
+  ladeKnopf(btn,false);
+}
+
+/* ============================================================
+   Vorrat
+   ============================================================ */
+async function vorratFotoAuslesen(){
+  const f = $('vorratDatei').files[0];
+  if(!f){ $('vorratErkannt').innerHTML='<div class="fehler">Bitte zuerst ein Foto auswählen.</div>'; return; }
+  const btn = $('btnVorratFoto'); ladeKnopf(btn,true,'Erkenne Lebensmittel …');
+  $('vorratErkannt').innerHTML='';
+  try{
+    const bild = await bildAlsBase64(f, 1800);
+    const j = await n8n('vorrat', { bild, mime:'image/jpeg', heute: heuteISO() }, 180000);
+    erkannteArtikelZeigen(j.artikel||[]);
+  }catch(e){
+    $('vorratErkannt').innerHTML = '<div class="fehler">'+esc(e.message)+'</div>';
+  }
+  ladeKnopf(btn,false);
+}
+function erkannteArtikelZeigen(artikel){
+  if(!artikel.length){ $('vorratErkannt').innerHTML='<div class="mut" style="margin-top:8px">Nichts erkannt.</div>'; return; }
+  let html = '<div style="margin-top:10px"><b>Erkannt – bitte prüfen und übernehmen:</b><table><tr><th>✓</th><th>Lebensmittel</th><th>Menge</th><th>MHD</th></tr>';
+  artikel.forEach((a,i)=>{
+    html += '<tr><td><input type="checkbox" id="ve_c'+i+'" checked></td>'+
+      '<td><input type="text" id="ve_n'+i+'" value="'+esc(a.name)+'"></td>'+
+      '<td><input type="text" id="ve_m'+i+'" value="'+esc(a.menge||'')+'"></td>'+
+      '<td><input type="date" id="ve_d'+i+'" value="'+esc(a.mhd||'')+'">'+(a.mhd && a.mhdSicher===false ? '<div class="mut">⚠️ MHD unsicher gelesen</div>' : '')+(!a.mhd ? '<div class="mut">kein MHD erkannt</div>' : '')+'</td></tr>';
+  });
+  html += '</table><div style="margin-top:8px"><button class="btn" onclick="erkannteUebernehmen('+artikel.length+')">In den Vorrat übernehmen</button></div></div>';
+  $('vorratErkannt').innerHTML = html;
+}
+function erkannteUebernehmen(n){
+  for(let i=0;i<n;i++){
+    if(!$('ve_c'+i).checked) continue;
+    const name = $('ve_n'+i).value.trim(); if(!name) continue;
+    vorrat.push({ id:'v'+Date.now()+'_'+i, name, menge:$('ve_m'+i).value.trim(), mhd:$('ve_d'+i).value||'' });
+  }
+  speichern('vorrat', vorrat);
+  $('vorratErkannt').innerHTML=''; $('vorratDatei').value=''; $('vorratVorschau').style.display='none';
+  vorratZeigen();
+}
+function vorratManuell(){
+  erkannteArtikelZeigen([{ name:'', menge:'', mhd:'' }]);
+}
+function vorratZeigen(){
+  const el = $('vorratListe');
+  if(!vorrat.length){ el.innerHTML='<div class="mut">Noch nichts im Vorrat.</div>'; return; }
+  const l = vorrat.slice().sort((a,b)=>(a.mhd||'9999').localeCompare(b.mhd||'9999'));
+  let html = '<table><tr><th>Lebensmittel</th><th>Menge</th><th>MHD</th><th></th></tr>';
+  l.forEach(v=>{
+    const t = tageBis(v.mhd);
+    let cls='mhd-gr', txt = v.mhd ? datumKurz(v.mhd) : '–';
+    if(t!==null){ if(t<0){cls='mhd-rot'; txt+=' (abgelaufen)';} else if(t<=2){cls='mhd-rot'; txt+=' ('+(t===0?'heute':'in '+t+' T.')+')';} else if(t<=5){cls='mhd-or'; txt+=' (in '+t+' T.)';} }
+    html += '<tr><td>'+esc(v.name)+'</td><td>'+esc(v.menge||'')+'</td><td class="'+cls+'">'+txt+'</td><td><button class="x" title="Verbraucht" onclick="vorratWeg(\''+v.id+'\')">×</button></td></tr>';
+  });
+  el.innerHTML = html+'</table>';
+}
+function vorratWeg(id){ vorrat = vorrat.filter(v=>v.id!==id); speichern('vorrat', vorrat); vorratZeigen(); }
+
+/* ============================================================
+   Ausschluss-Liste (Das essen wir nicht / Heute ohne)
+   ============================================================ */
+function lmGruppen(){
+  const g = Object.assign({}, LEBENSMITTEL);
+  if((profil.eigene||[]).length) g['Eigene'] = profil.eigene;
+  return g;
+}
+function ausschlussZeigen(){
+  ['ausschlussProfil','ausschlussHeute'].forEach(elId=>{
+    const heuteModus = elId==='ausschlussHeute';
+    const el = $(elId); if(!el) return; el.innerHTML='';
+    Object.entries(lmGruppen()).forEach(([gruppe, liste])=>{
+      const t = document.createElement('div'); t.className='lmgruppe'; t.textContent=gruppe; el.appendChild(t);
+      const box = document.createElement('div'); box.className='chips';
+      liste.forEach(lm=>{
+        const c = document.createElement('div'); c.className='chip'; c.textContent=lm;
+        const dauerhaft = profil.ausschluss.includes(lm);
+        if(dauerhaft) c.classList.add('nein');
+        if(heuteModus){
+          if(dauerhaft) c.classList.add('gesperrt');
+          else if(heuteNicht.includes(lm)) c.classList.add('heute');
+          c.onclick = ()=>{ if(dauerhaft) return; heuteNicht = heuteNicht.includes(lm) ? heuteNicht.filter(x=>x!==lm) : heuteNicht.concat(lm); ausschlussZeigen(); };
+        } else {
+          c.onclick = ()=>{ profil.ausschluss = dauerhaft ? profil.ausschluss.filter(x=>x!==lm) : profil.ausschluss.concat(lm); heuteNicht = heuteNicht.filter(x=>x!==lm); speichern('profil', profil); ausschlussZeigen(); };
+        }
+        if(!heuteModus && gruppe==='Eigene'){
+          const x = document.createElement('span'); x.textContent=' ✕'; x.title='Aus der Liste löschen';
+          x.onclick = e=>{ e.stopPropagation(); profil.eigene = profil.eigene.filter(y=>y!==lm); profil.ausschluss = profil.ausschluss.filter(y=>y!==lm); speichern('profil', profil); ausschlussZeigen(); };
+          c.appendChild(x);
+        }
+        box.appendChild(c);
+      });
+      el.appendChild(box);
+    });
+  });
+  const n = profil.ausschluss.length + heuteNicht.length;
+  $('heuteZahl').textContent = n ? '('+profil.ausschluss.length+' dauerhaft'+(heuteNicht.length?' + '+heuteNicht.length+' heute':'')+')' : '';
+}
+function eigenesHinzu(){
+  const el = $('eigenesLm'); const v = el.value.trim(); if(!v) return;
+  const alle = Object.values(LEBENSMITTEL).flat().concat(profil.eigene||[]).map(x=>x.toLowerCase());
+  if(!alle.includes(v.toLowerCase())) profil.eigene = (profil.eigene||[]).concat(v);
+  const name = Object.values(lmGruppen()).flat().find(x=>x.toLowerCase()===v.toLowerCase()) || v;
+  if(!profil.ausschluss.includes(name)) profil.ausschluss = profil.ausschluss.concat(name);
+  speichern('profil', profil); el.value=''; ausschlussZeigen();
+}
+function ausgeschlosseneBegriffe(){
+  return Array.from(new Set(profil.ausschluss.concat(heuteNicht)));
+}
+// Wortstämme für die Angebotsfilterung ("Zwiebeln" -> "zwiebel")
+function stamm(w){ return w.toLowerCase().trim().replace(/(en|n|e|s)$/,''); }
+function angebotAusgeschlossen(a){
+  const name = (a.produkt||'').toLowerCase();
+  return ausgeschlosseneBegriffe().some(b=> b.split('/').map(stamm).filter(x=>x.length>=3).some(st=>name.includes(st)));
+}
+
+/* ============================================================
+   Rezepte
+   ============================================================ */
+async function rezepteHolen(){
+  const btn = $('btnRezepte'); ladeKnopf(btn,true,'Koche Ideen …');
+  $('rzInfo').textContent='';
+  const nutzbar = alleAngebote().filter(a=>profil.maerkte.includes(a.markt) && istVerwendbar(a) && !angebotAusgeschlossen(a));
+  const offen = alleAngebote().filter(a=>profil.maerkte.includes(a.markt) && !istVerwendbar(a)).length;
+  const daten = {
+    profil: {
+      geraete: profil.geraete, erwachsene: profil.erw, appetitErwachsene: profil.erwApp,
+      kinder: profil.kind, appetitKinder: profil.kindApp, bio: profil.bio, ernaehrung: profil.ern,
+      saison: aktuelleSaison(), kochzeit: profil.zeit,
+      nichtVerwenden: ausgeschlosseneBegriffe()
+    },
+    anzahl: parseInt($('rzAnzahl').value,10), mahlzeit: $('rzMahlzeit').value, wunsch: $('rzWunsch').value.trim(),
+    angebote: nutzbar.map(a=>({ id:a.id, markt:marktName(a.markt), produkt:a.produkt, menge:a.menge||'', preis:a.preis, bio: /bio/i.test(a.produkt||'') })),
+    vorrat: vorrat.filter(v=>!angebotAusgeschlossen({produkt:v.name})).map(v=>({ name:v.name, menge:v.menge, tageBisMhd: tageBis(v.mhd) })),
+    heute: heuteISO()
+  };
+  try{
+    const j = await n8n('rezepte', daten, 300000);
+    rezepte = (j.rezepte||[]).map(r=>Object.assign({}, r, { erstellt: new Date().toISOString() }));
+    speichern('rezepte', rezepte);
+    rezepteZeigen();
+    $('rzInfo').textContent = nutzbar.length+' geprüfte Angebote berücksichtigt'+(offen ? ' · '+offen+' Foto-Angebote warten noch auf deine Bestätigung' : '')+'.';
+  }catch(e){
+    $('rezeptListe').innerHTML = '<div class="fehler">'+esc(e.message)+'</div>';
+  }
+  ladeKnopf(btn,false);
+}
+
+function rezepteZeigen(){
+  const el = $('rezeptListe');
+  if(!rezepte.length){ el.innerHTML='<div class="mut" style="padding:4px">Noch keine Rezepte. Profil ausfüllen, Angebote laden, dann „Rezepte erstellen“.</div>'; return; }
+  const angMap = {}; alleAngebote().forEach(a=>angMap[a.id]=a);
+  el.innerHTML = rezepte.map(r=>{
+    let sparen = 0;
+    const zut = (r.zutaten||[]).map(z=>{
+      let tag = '';
+      const a = z.angebotId ? angMap[z.angebotId] : null;
+      if(a){
+        const warn = !(a.quelle==='text' && a.geprueft);
+        tag = ' <span class="badge '+(warn?'warn':'ok')+'">🏷️ '+esc(marktName(a.markt))+' '+euro(a.preis)+(warn?' ⚠️ Preis prüfen':'')+'</span>';
+        if(warn && prospektLink(a.markt)) tag += ' <a class="mut" href="'+esc(prospektLink(a.markt))+'" target="_blank" rel="noopener">Prospekt</a>';
+        if(typeof a.preis==='number') sparen += 1;
+      }
+      if(z.ausVorrat) tag += ' <span class="badge neu">🧊 Vorrat</span>';
+      return '<li>'+esc(z.menge?z.menge+' ':'')+esc(z.name)+tag+'</li>';
+    }).join('');
+    const schritte = (r.schritte||[]).map(s=>'<li>'+esc(s)+'</li>').join('');
+    const n = r.naehrwerte||{};
+    return '<div class="card rezept"><h3>'+esc(r.titel)+'</h3>'+
+      '<div class="mut">⏱ '+esc(r.dauerMin||'?')+' Min. · 👥 '+esc(r.portionen||'')+' · 🔌 '+esc((r.geraete||[]).join(', '))+(r.bio?' · 🌱 Bio':'')+'</div>'+
+      (r.warum ? '<p style="margin:8px 0">'+esc(r.warum)+'</p>' : '')+
+      '<h3 style="margin-top:10px">Zutaten</h3><ul>'+zut+'</ul>'+
+      (r.kostenSchaetzung ? '<div class="mut">Geschätzte Kosten: '+esc(r.kostenSchaetzung)+'</div>' : '')+
+      '<h3 style="margin-top:10px">Zubereitung</h3><ol>'+schritte+'</ol>'+
+      (n.kcal ? '<div class="naehr"><div>🔥 '+esc(n.kcal)+' kcal</div><div>💪 '+esc(n.eiweiss)+' g Eiweiß</div><div>🧈 '+esc(n.fett)+' g Fett</div><div>🍞 '+esc(n.kohlenhydrate)+' g KH</div><div class="mut">pro Portion, geschätzt</div></div>' : '')+
+      '</div>';
+  }).join('');
+}
+
+/* ============================================================
+   Start
+   ============================================================ */
+function init(){
+  chipGruppe('geraeteChips', GERAETE, true, 'geraete');
+  chipGruppe('bioChips', BIO, false, 'bio');
+  chipGruppe('ernChips', ERN, true, 'ern');
+  chipGruppe('saisonChips', SAISON, false, 'saison');
+  chipGruppe('zeitChips', ZEIT, false, 'zeit');
+  profilFelderBinden();
+  ausschlussZeigen();
+  marktListeZeigen();
+  flyerMarktListe();
+  kopfStatus();
+  rezepteZeigen();
+  angeboteBeimStartLaden();
+}
+init();
+</script>
+</body>
+</html>
