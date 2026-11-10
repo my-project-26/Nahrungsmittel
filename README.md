@@ -7,7 +7,7 @@ Die App holt die Wochenangebote deiner Märkte (Raum Villingen-Schwenningen) und
 ## Einrichtung n8n (einmalig)
 
 1. In n8n: **Workflows → Import from File** → `n8n/kochplaner-workflow.json` wählen.
-2. Den Node **Konfiguration** öffnen und deinen Anthropic-API-Schlüssel eintragen.
+2. Den Node **Konfiguration** öffnen und deinen Gemini-Schlüssel eintragen (aistudio.google.com → „Get API key“). Alternativ `anbieter: 'anthropic'` mit Anthropic-Schlüssel.
    Optional: für EDEKA, REWE und Kaufland die Angebotsseite deines Markts eintragen.
 3. Den Workflow speichern und oben rechts auf **Active** schalten.
 4. In der App unter **Profil → Verbindung zu n8n** die Adresse `http://localhost:5678/webhook/koch` eintragen und auf „Verbindung testen“ tippen.
