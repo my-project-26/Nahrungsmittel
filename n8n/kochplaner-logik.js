@@ -71,7 +71,7 @@ async function geminiModelle() {
   return namen;
 }
 
-const warte = ms => new Promise(r => setTimeout(r, ms));
+const warte = ms => (typeof setTimeout === 'function' ? new Promise(r => setTimeout(r, ms)) : Promise.resolve());
 
 async function geminiAufruf(content, maxTokens) {
   if (!cfg.geminiApiKey || cfg.geminiApiKey.startsWith('HIER_')) {
@@ -244,7 +244,7 @@ async function textQuelleAbrufen(markt, url) {
   const seiten = [{ url, text: htmlZuText(html) }];
   const re = UNTERSEITEN[markt];
   if (re) {
-    const basis = new URL(url).origin;
+    const basis = (String(url).match(/^https?:\/\/[^\/]+/) || [''])[0]; // ohne URL-Klasse (im n8n-Sandbox nicht vorhanden)
     const gesehen = new Set([url]);
     let ebene = [html];
     for (let tiefe = 0; tiefe < 2 && seiten.length < 20; tiefe++) {
