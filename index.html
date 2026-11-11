@@ -468,16 +468,28 @@ async function angeboteBeimStartLaden(){
   }
 }
 
+const ONLINE_MAERKTE = ['aldi','norma','edeka','rewe','kaufland'];
 async function angeboteAktualisieren(still){
-  const btn = $('btnAktualisieren'); ladeKnopf(btn,true,'Hole Angebote … (1–3 Min.)');
+  const btn = $('btnAktualisieren'); ladeKnopf(btn,true,'Hole Prospekt-Links …');
   $('angFehler').innerHTML='';
+  const fehler = [];
   try{
-    const j = await n8n('aktualisieren', { maerkte: profil.maerkte }, 600000);
-    angDaten = j; speichern('angebote', angDaten);
-    kopfStatus(); marktListeZeigen(); angeboteZeigen();
-  }catch(e){
-    if(!still) $('angFehler').innerHTML = '<div class="fehler">'+esc(e.message)+'</div>';
-  }
+    // 1) Prospekt-Links (schnell)
+    angDaten = await n8n('links', { maerkte: profil.maerkte }, 60000);
+    speichern('angebote', angDaten); marktListeZeigen(); angeboteZeigen();
+    // 2) Jeden Markt einzeln – so läuft n8n nie in eine Zeitüberschreitung
+    const liste = ONLINE_MAERKTE.filter(m=>profil.maerkte.includes(m));
+    for(let i=0;i<liste.length;i++){
+      const m = liste[i];
+      btn.innerHTML = '<span class="lade"></span> '+esc(marktName(m))+' ('+(i+1)+'/'+liste.length+') …';
+      try{
+        const j = await n8n('markt', { markt: m }, 280000);
+        if(j && j.daten){ angDaten = j.daten; speichern('angebote', angDaten); }
+      }catch(e){ fehler.push(marktName(m)+': '+e.message); }
+      kopfStatus(); marktListeZeigen(); angeboteZeigen();
+    }
+  }catch(e){ fehler.push(e.message); }
+  if(fehler.length && !still) $('angFehler').innerHTML = fehler.map(f=>'<div class="fehler">'+esc(f)+'</div>').join('');
   ladeKnopf(btn,false);
 }
 
@@ -486,7 +498,7 @@ function quellenZeigen(){
   const q = (angDaten.quellen||[]).filter(x=>profil.maerkte.includes(x.markt));
   if(!q.length){ el.innerHTML=''; return; }
   el.innerHTML = q.map(x=>{
-    let b = x.status==='text' ? '<span class="badge ok">✅ '+x.anzahl+' Angebote</span>'
+    let b = x.status==='text' ? '<span class="badge ok">✅ '+x.anzahl+' Angebote'+(x.seiten>1?' aus '+x.seiten+' Seiten':'')+'</span>'
           : x.status==='fehler' ? '<span class="badge bad">❌ '+esc(x.fehler||'Fehler')+'</span>'
           : '<span class="badge warn">⚠️ nur Prospekt – per Foto</span>';
     if(x.verworfen) b += ' <span class="badge neu">'+x.verworfen+' verworfen (Preis nicht eindeutig)</span>';

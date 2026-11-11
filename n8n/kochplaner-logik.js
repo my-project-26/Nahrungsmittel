@@ -85,7 +85,7 @@ async function geminiAufruf(content, maxTokens) {
   if (store.geminiOk && modelle.includes(store.geminiOk)) modelle = [store.geminiOk].concat(modelle.filter(m => m !== store.geminiOk));
   const fehler = [];
   for (const modell of modelle.slice(0, 8)) {
-    if (Date.now() - START > 200000) break; // Zeitbudget, damit n8n den Code-Node nicht abbricht
+    if (Date.now() - START > 170000) break; // Zeitbudget, damit n8n den Code-Node nicht abbricht
     for (let versuch = 1; versuch <= 2; versuch++) {
       try {
         const res = await helpers.httpRequest({
@@ -94,7 +94,7 @@ async function geminiAufruf(content, maxTokens) {
           headers: { 'x-goog-api-key': cfg.geminiApiKey, 'content-type': 'application/json' },
           body: { contents: [{ role: 'user', parts }], generationConfig: { temperature: 0, maxOutputTokens: Math.max(maxTokens || 8000, 16000) } },
           json: true,
-          timeout: 150000
+          timeout: 110000
         });
         const kandidat = (res.candidates || [])[0];
         if (!kandidat) throw Object.assign(new Error('keine Antwort'), { httpCode: 'leer' });
@@ -247,13 +247,13 @@ async function textQuelleAbrufen(markt, url) {
     const basis = (String(url).match(/^https?:\/\/[^\/]+/) || [''])[0]; // ohne URL-Klasse (im n8n-Sandbox nicht vorhanden)
     const gesehen = new Set([url]);
     let ebene = [html];
-    for (let tiefe = 0; tiefe < 2 && seiten.length < 20; tiefe++) {
+    for (let tiefe = 0; tiefe < 2 && seiten.length < 14; tiefe++) {
       const links = [];
       for (const h of ebene) for (const t of h.matchAll(new RegExp(re.source, 'g'))) {
         const l = t[1].startsWith('http') ? t[1] : basis + t[1];
         if (!gesehen.has(l)) { gesehen.add(l); links.push(l); }
       }
-      const neue = links.slice(0, 20 - seiten.length);
+      const neue = links.slice(0, 14 - seiten.length);
       const geladen = await Promise.all(neue.map(l => holeSeite(l).then(h => ({ url: l, h })).catch(() => null)));
       ebene = [];
       for (const g of geladen) if (g) { seiten.push({ url: g.url, text: htmlZuText(g.h) }); ebene.push(g.h); }
@@ -264,18 +264,18 @@ async function textQuelleAbrufen(markt, url) {
     return { quelle: { markt, status: 'fehler', fehler: 'Seite liefert keinen Text (wird per JavaScript geladen)', anzahl: 0 }, angebote: [] };
   }
 
-  // In Pakete à max. 60.000 Zeichen aufteilen (max. 6 KI-Aufrufe, parallel)
+  // In Pakete à max. 80.000 Zeichen aufteilen (max. 3 KI-Aufrufe, parallel)
   const pakete = []; let akt = '';
   for (const p of seiten) {
-    const t = p.text.slice(0, 60000);
-    if (akt.length + t.length > 60000 && akt) { pakete.push(akt); akt = ''; }
+    const t = p.text.slice(0, 80000);
+    if (akt.length + t.length > 80000 && akt) { pakete.push(akt); akt = ''; }
     akt += '\n\n### Seite: ' + p.url + '\n' + t;
   }
   if (akt) pakete.push(akt);
 
   let verworfen = 0, kiFehler = 0;
   const gefunden = new Map();
-  await Promise.all(pakete.slice(0, 6).map(async paket => {
+  await Promise.all(pakete.slice(0, 3).map(async paket => {
     let antwort;
     try {
       antwort = await claude([{ type: 'text', text: 'Hier ist der Text der Angebotsseite(n) von ' + markt.toUpperCase() + ':\n\n<<<\n' + paket + '\n>>>\n\n' + ANWEISUNG_ZEILEN }], 12000);
@@ -323,25 +323,44 @@ async function prospektLinkSuchen(markt, url) {
 // ------------------------------------------------------------
 // Aktionen
 // ------------------------------------------------------------
-async function aktualisieren(maerkte) {
+function leererStand() { return { stand: null, quellen: [], angebote: [], prospektLinks: {} }; }
+
+// Einen einzelnen Text-Markt abrufen und in den gespeicherten Stand einsortieren
+async function marktAktualisieren(markt) {
+  if (!TEXT_MAERKTE.includes(markt)) throw new Error('Markt ' + markt + ' wird nicht online abgerufen.');
+  const url = cfg.textQuellen[markt];
+  const e = url ? await textQuelleAbrufen(markt, url)
+                : { quelle: { markt, status: 'fehler', fehler: 'Keine Adresse in der Konfiguration', anzahl: 0 }, angebote: [] };
+  const d = store.angebote || leererStand();
+  d.quellen = (d.quellen || []).filter(q => q.markt !== markt).concat(e.quelle);
+  d.angebote = (d.angebote || []).filter(x => x.markt !== markt).concat(e.angebote);
+  d.stand = new Date().toISOString();
+  store.angebote = d;
+  return { quelle: e.quelle, daten: d };
+}
+
+// Prospekt-Links und Prospekt-Märkte aktualisieren (schnell, ohne KI)
+async function linksAktualisieren(maerkte) {
   const gewaehlt = Array.isArray(maerkte) && maerkte.length ? maerkte : (store.maerkte || TEXT_MAERKTE.concat(PROSPEKT_MAERKTE));
   store.maerkte = gewaehlt;
-  const aufgaben = [];
+  const links = await Promise.all(PROSPEKT_MAERKTE.filter(m => cfg.prospektSeiten[m]).map(async m => [m, await prospektLinkSuchen(m, cfg.prospektSeiten[m])]));
+  const d = store.angebote || leererStand();
+  d.prospektLinks = Object.fromEntries(links);
+  d.quellen = (d.quellen || []).filter(q => !PROSPEKT_MAERKTE.includes(q.markt));
+  for (const m of PROSPEKT_MAERKTE) if (gewaehlt.includes(m)) d.quellen.push({ markt: m, status: 'prospekt', anzahl: 0 });
+  store.angebote = d;
+  return d;
+}
+
+// Zeitplan: alle Märkte nacheinander, solange das Zeitbudget reicht
+async function aktualisieren(maerkte) {
+  await linksAktualisieren(maerkte);
   for (const m of TEXT_MAERKTE) {
-    if (gewaehlt.includes(m) && cfg.textQuellen[m]) aufgaben.push(textQuelleAbrufen(m, cfg.textQuellen[m]));
+    if (!store.maerkte.includes(m)) continue;
+    if (Date.now() - START > 150000) break; // Rest holt die App beim nächsten Öffnen nach
+    try { await marktAktualisieren(m); } catch (e) { /* nächster Markt */ }
   }
-  const linkAufgaben = PROSPEKT_MAERKTE.filter(m => cfg.prospektSeiten[m]).map(async m => [m, await prospektLinkSuchen(m, cfg.prospektSeiten[m])]);
-  const [ergebnisse, links] = await Promise.all([Promise.all(aufgaben), Promise.all(linkAufgaben)]);
-  const quellen = ergebnisse.map(e => e.quelle);
-  for (const m of PROSPEKT_MAERKTE) if (gewaehlt.includes(m)) quellen.push({ markt: m, status: 'prospekt', anzahl: 0 });
-  const daten = {
-    stand: new Date().toISOString(),
-    quellen,
-    angebote: ergebnisse.flatMap(e => e.angebote),
-    prospektLinks: Object.fromEntries(links)
-  };
-  store.angebote = daten;
-  return daten;
+  return store.angebote;
 }
 
 async function flyerLesen(b) {
@@ -428,6 +447,8 @@ try {
   if (aktion === 'ping') antwort = { ok: true, info: 'n8n Kochplaner läuft · KI: ' + (cfg.anbieter || 'gemini') + ' · Angebote-Stand: ' + ((store.angebote && store.angebote.stand) || 'noch keiner') };
   else if (aktion === 'angebote') antwort = store.angebote || { stand: null, quellen: [], angebote: [], prospektLinks: {} };
   else if (aktion === 'aktualisieren') antwort = await aktualisieren(body.maerkte);
+  else if (aktion === 'links') antwort = await linksAktualisieren(body.maerkte);
+  else if (aktion === 'markt') antwort = await marktAktualisieren(body.markt);
   else if (aktion === 'flyer') antwort = await flyerLesen(body);
   else if (aktion === 'vorrat') antwort = await vorratLesen(body);
   else if (aktion === 'rezepte') antwort = await rezepteErstellen(body);
