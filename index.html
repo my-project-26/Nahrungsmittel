@@ -111,6 +111,25 @@
       <div id="quellenListe" style="margin-top:10px"></div>
     </div>
     <div class="card">
+      <h2>📌 Angebote von der Händlerseite holen</h2>
+      <div class="mut">ALDI, EDEKA, REWE und Kaufland sperren automatische Abrufe. Deshalb holst du die Seite in <b>deinem</b> Browser – die Preise werden trotzdem automatisch geprüft.</div>
+      <ol style="padding-left:20px;margin:10px 0">
+        <li><b>Einmalig:</b> Diesen Knopf in die Lesezeichenleiste ziehen (Leiste einblenden: Cmd + Shift + B):<br>
+          <a id="lesezeichenLink" class="btn klein" style="margin:6px 0;text-decoration:none" href="#" onclick="alert('Nicht klicken – in die Lesezeichenleiste ziehen.');return false">🛒 → Kochplaner</a></li>
+        <li>Angebotsseite des Markts öffnen (Links unten). Bei EDEKA/REWE/Kaufland einmal deinen Markt wählen.</li>
+        <li>Lesezeichen <b>„🛒 → Kochplaner“</b> anklicken. Die Seite scrollt kurz durch, dann erscheint oben rechts das Ergebnis.</li>
+        <li>Bei NORMA, ALDI usw. ggf. weitere Unterseiten („ab Donnerstag“, „ab Freitag“) öffnen und wieder klicken – die Angebote werden ergänzt.</li>
+      </ol>
+      <div id="seitenLinks" class="chips"></div>
+      <details style="margin-top:12px"><summary>Lesezeichen geht nicht? Text einfügen</summary>
+        <div class="mut" style="margin:6px 0">Auf der Angebotsseite Cmd + A, Cmd + C – hier einfügen.</div>
+        <select id="einfMarkt"></select>
+        <textarea id="einfText" rows="5" style="margin-top:6px" placeholder="Seitentext hier einfügen …"></textarea>
+        <button class="btn" id="btnEinf" style="margin-top:8px" onclick="seiteEinfuegen()">Angebote auslesen</button>
+        <div id="einfErgebnis"></div>
+      </details>
+    </div>
+    <div class="card">
       <div class="filterleiste">
         <select id="angFilterMarkt" onchange="angeboteZeigen()" style="flex:1"></select>
         <input type="text" id="angSuche" placeholder="Suchen …" oninput="angeboteZeigen()" style="flex:2">
@@ -234,17 +253,17 @@
    Stammdaten
    ============================================================ */
 const MAERKTE = [
-  { id:'aldi',      name:'ALDI SÜD',      ort:'Niederwiesenstraße 33 u. a.', art:'text',     prospekt:'https://www.aldi-sued.de/de/angebote.html' },
-  { id:'lidl',      name:'Lidl',          ort:'Beim Enggäßle 1 u. a.',       art:'prospekt', prospekt:'https://www.lidl.de/c/billiger-montag/a10006065' },
-  { id:'norma',     name:'NORMA',         ort:'Harzerstraße 10',             art:'text',     prospekt:'https://www.norma-online.de/de/angebote/onlineprospekt/' },
-  { id:'edeka',     name:'EDEKA',         ort:'Haas / Schönauer / E center', art:'text',     prospekt:'https://www.edeka.de/eh/angebote.jsp' },
-  { id:'rewe',      name:'REWE',          ort:'Am Krebsgraben 5',            art:'test',     prospekt:'https://www.rewe.de/angebote/' },
-  { id:'kaufland',  name:'Kaufland',      ort:'Neuer Markt 1',               art:'test',     prospekt:'https://filiale.kaufland.de/prospekte.html' },
-  { id:'netto',     name:'Netto',         ort:'Kirnacher Str. 75 u. a.',     art:'prospekt', prospekt:'https://www.netto-online.de/ueber-netto/Online-Prospekte.chtm' },
-  { id:'penny',     name:'PENNY',         ort:'Sturmbühlstraße 134',         art:'prospekt', prospekt:'https://www.penny.de/angebote#handout' },
-  { id:'denns',     name:"denn's BioMarkt", ort:'Bad Dürrheim',              art:'prospekt', prospekt:'https://www.biomarkt.de/' },
-  { id:'biowelt',   name:'Biowelt Natur und Fein', ort:'Herdstraße 9',       art:'foto',     prospekt:'' },
-  { id:'wochenmarkt', name:'Wochenmarkt Villingen', ort:'Münsterplatz, Mi + Sa', art:'foto', prospekt:'' }
+  { id:'aldi',     name:'ALDI SÜD',        ort:'Niederwiesenstraße 33 u. a.', art:'lesezeichen', seite:'https://www.aldi-sued.de/de/angebote.html', prospekt:'https://www.aldi-sued.de/de/angebote.html' },
+  { id:'lidl',     name:'Lidl',            ort:'Beim Enggäßle 1 u. a.',       art:'prospekt',    seite:'https://www.lidl.de/c/billiger-montag/a10006065', prospekt:'https://www.lidl.de/c/billiger-montag/a10006065' },
+  { id:'norma',    name:'NORMA',           ort:'Harzerstraße 10',             art:'text',        seite:'https://www.norma-online.de/de/angebote/', prospekt:'https://www.norma-online.de/de/angebote/onlineprospekt/' },
+  { id:'edeka',    name:'EDEKA',           ort:'Haas / Schönauer / E center', art:'lesezeichen', seite:'https://www.edeka.de/eh/angebote.jsp', prospekt:'https://www.edeka.de/eh/angebote.jsp' },
+  { id:'rewe',     name:'REWE',            ort:'Am Krebsgraben 5',            art:'lesezeichen', seite:'https://www.rewe.de/angebote/', prospekt:'https://www.rewe.de/angebote/' },
+  { id:'kaufland', name:'Kaufland',        ort:'Neuer Markt 1',               art:'lesezeichen', seite:'https://filiale.kaufland.de/angebote/aktuelle-woche.html', prospekt:'https://filiale.kaufland.de/prospekte.html' },
+  { id:'netto',    name:'Netto',           ort:'Kirnacher Str. 75 u. a.',     art:'prospekt',    seite:'https://www.netto-online.de/filialangebote', prospekt:'https://www.netto-online.de/ueber-netto/Online-Prospekte.chtm' },
+  { id:'penny',    name:'PENNY',           ort:'Sturmbühlstraße 134',         art:'prospekt',    seite:'https://www.penny.de/angebote', prospekt:'https://www.penny.de/angebote#handout' },
+  { id:'denns',    name:"denn's BioMarkt", ort:'Bad Dürrheim',                art:'prospekt',    seite:'https://www.biomarkt.de/', prospekt:'https://www.biomarkt.de/' },
+  { id:'biowelt',  name:'Biowelt Natur und Fein', ort:'Herdstraße 9',          art:'foto',        seite:'', prospekt:'' },
+  { id:'wochenmarkt', name:'Wochenmarkt Villingen', ort:'Münsterplatz, Mi + Sa', art:'foto',     seite:'', prospekt:'' }
 ];
 const GERAETE = ['Herd','Backofen','Thermomix','Airfryer','Mikrowelle','Slow Cooker','Schnellkochtopf','Grill','Dampfgarer','Wok','Mixer'];
 const BIO = [['bio','Möglichst Bio'],['normal','Normal'],['egal','Egal']];
@@ -395,11 +414,11 @@ function marktListeZeigen(){
     const an = profil.maerkte.includes(m.id);
     let status = '';
     if(art==='text') status = '<span class="badge ok">✅ Preise geprüft (Text von der Händlerseite)</span>';
-    else if(art==='test') status = '<span class="badge neu">🧪 Wird getestet – Abruf evtl. blockiert</span>';
+    else if(art==='lesezeichen') status = '<span class="badge neu">📌 Per Lesezeichen von der Händlerseite – Preise werden geprüft</span>';
     else if(art==='prospekt') status = '<span class="badge warn">⚠️ Nur Prospekt</span>';
     else status = '<span class="badge warn">📷 Nur per Foto</span>';
     let hinweis = '';
-    if(art==='prospekt' || art==='test'){
+    if(art==='prospekt'){
       const link = prospektLink(m.id);
       hinweis = '<div class="hinweis">⚠️ <b>Preis bitte sicherheitshalber selbst prüfen.</b> Angebote dieses Markts werden aus dem Prospekt gelesen (Foto/Screenshot).'+
         (link ? ' <a href="'+esc(link)+'" target="_blank" rel="noopener">→ Aktuellen Prospekt öffnen</a>' : '')+'</div>';
@@ -410,7 +429,7 @@ function marktListeZeigen(){
     div.innerHTML = '<input type="checkbox" '+(an?'checked':'')+'><div class="info"><b>'+esc(m.name)+'</b> <span class="mut">'+esc(m.ort)+'</span><br>'+status+hinweis+'</div>';
     div.querySelector('input').onchange = e=>{
       profil.maerkte = e.target.checked ? Array.from(new Set(profil.maerkte.concat(m.id))) : profil.maerkte.filter(x=>x!==m.id);
-      speichern('profil', profil); kopfStatus();
+      speichern('profil', profil); kopfStatus(); lesezeichenZeigen();
     };
     el.appendChild(div);
   });
@@ -420,7 +439,7 @@ function profilFelderBinden(){
   const felder = [['pErw','erw','num'],['pErwApp','erwApp'],['pKind','kind','num'],['pKindApp','kindApp'],['n8nUrl','n8nUrl']];
   felder.forEach(([id,k,typ])=>{
     const el = $(id); el.value = profil[k] ?? '';
-    el.addEventListener('change', ()=>{ profil[k] = typ==='num' ? Math.max(0, parseInt(el.value||'0',10)) : el.value; speichern('profil', profil); kopfStatus(); });
+    el.addEventListener('change', ()=>{ profil[k] = typ==='num' ? Math.max(0, parseInt(el.value||'0',10)) : el.value; speichern('profil', profil); kopfStatus(); lesezeichenZeigen(); });
   });
 }
 
@@ -468,28 +487,70 @@ async function angeboteBeimStartLaden(){
   }
 }
 
-const ONLINE_MAERKTE = ['aldi','norma','edeka','rewe','kaufland'];
 async function angeboteAktualisieren(still){
   const btn = $('btnAktualisieren'); ladeKnopf(btn,true,'Hole Prospekt-Links …');
   $('angFehler').innerHTML='';
   const fehler = [];
   try{
-    // 1) Prospekt-Links (schnell)
-    angDaten = await n8n('links', { maerkte: profil.maerkte }, 60000);
-    speichern('angebote', angDaten); marktListeZeigen(); angeboteZeigen();
-    // 2) Jeden Markt einzeln – so läuft n8n nie in eine Zeitüberschreitung
-    const liste = ONLINE_MAERKTE.filter(m=>profil.maerkte.includes(m));
+    const j = await n8n('links', { maerkte: profil.maerkte }, 60000);
+    angDaten = j; speichern('angebote', angDaten); marktListeZeigen(); angeboteZeigen();
+    const liste = j.onlineMaerkte || [];
     for(let i=0;i<liste.length;i++){
       const m = liste[i];
       btn.innerHTML = '<span class="lade"></span> '+esc(marktName(m))+' ('+(i+1)+'/'+liste.length+') …';
       try{
-        const j = await n8n('markt', { markt: m }, 280000);
-        if(j && j.daten){ angDaten = j.daten; speichern('angebote', angDaten); }
+        const r = await n8n('markt', { markt: m }, 280000);
+        if(r && r.daten){ angDaten = r.daten; speichern('angebote', angDaten); }
       }catch(e){ fehler.push(marktName(m)+': '+e.message); }
       kopfStatus(); marktListeZeigen(); angeboteZeigen();
     }
   }catch(e){ fehler.push(e.message); }
   if(fehler.length && !still) $('angFehler').innerHTML = fehler.map(f=>'<div class="fehler">'+esc(f)+'</div>').join('');
+  ladeKnopf(btn,false);
+}
+
+/* ============================================================
+   Lesezeichen (Bookmarklet) + Text einfügen
+   ============================================================ */
+function lesezeichenCode(){
+  const url = (profil.n8nUrl||'').trim();
+  const code = "(async()=>{const U="+JSON.stringify(url)+";const h=location.hostname;"+
+    "const M=[['aldi-sued','aldi'],['lidl','lidl'],['norma-online','norma'],['edeka','edeka'],['rewe','rewe'],['kaufland','kaufland'],['netto-online','netto'],['penny','penny'],['biomarkt','denns'],['denns','denns']];"+
+    "const m=(M.find(x=>h.includes(x[0]))||[])[1];"+
+    "const d=document.createElement('div');d.style.cssText='position:fixed;top:12px;right:12px;z-index:2147483647;max-width:360px;background:#3f6b3a;color:#fff;padding:12px 16px;border-radius:10px;font:15px/1.4 sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.35)';document.body.appendChild(d);"+
+    "const s=t=>d.textContent='Kochplaner: '+t;"+
+    "if(!m){s('Diese Seite gehört zu keinem bekannten Markt.');setTimeout(()=>d.remove(),6000);return}"+
+    "s('lade alle Angebote …');for(let i=0;i<25;i++){window.scrollBy(0,innerHeight);await new Promise(r=>setTimeout(r,300))}window.scrollTo(0,0);"+
+    "s('lese aus und prüfe Preise … (bis 2 Min.)');"+
+    "try{const r=await fetch(U,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({aktion:'seite',markt:m,url:location.href,text:document.body.innerText})});"+
+    "const j=await r.json();if(j.fehler)throw new Error(j.fehler);const q=j.quelle||{};"+
+    "if(q.status==='fehler')throw new Error(q.fehler);"+
+    "d.style.background='#3f6b3a';s('✅ '+(q.anzahl||0)+' geprüfte Angebote übernommen'+(q.verworfen?' ('+q.verworfen+' verworfen, Preis nicht eindeutig)':''))}"+
+    "catch(e){d.style.background='#b3261e';s('❌ '+e.message+' – Alternativ: Cmd+A, Cmd+C und in der App einfügen.')}"+
+    "setTimeout(()=>d.remove(),12000)})()";
+  return 'javascript:'+encodeURIComponent(code);
+}
+function lesezeichenZeigen(){
+  const a = $('lesezeichenLink'); if(a) a.setAttribute('href', lesezeichenCode());
+  const el = $('seitenLinks'); if(!el) return;
+  el.innerHTML = MAERKTE.filter(m=>m.seite && profil.maerkte.includes(m.id) && m.art!=='prospekt' && m.art!=='foto')
+    .map(m=>'<a class="chip" style="text-decoration:none;color:inherit" target="_blank" rel="noopener" href="'+esc(m.seite)+'">'+esc(m.name)+' ↗</a>').join('');
+  const sel = $('einfMarkt'); if(sel){ const alt = sel.value; sel.innerHTML = MAERKTE.filter(m=>m.seite).map(m=>'<option value="'+m.id+'">'+esc(m.name)+'</option>').join(''); if(alt) sel.value = alt; }
+}
+async function seiteEinfuegen(){
+  const text = $('einfText').value.trim();
+  if(text.length < 200){ $('einfErgebnis').innerHTML='<div class="fehler">Bitte den kompletten Seitentext einfügen (Cmd + A, Cmd + C auf der Angebotsseite).</div>'; return; }
+  const btn = $('btnEinf'); ladeKnopf(btn,true,'Lese aus und prüfe Preise …');
+  $('einfErgebnis').innerHTML='';
+  try{
+    const j = await n8n('seite', { markt: $('einfMarkt').value, text, url: 'eingefügt' }, 280000);
+    if(j.daten){ angDaten = j.daten; speichern('angebote', angDaten); }
+    const q = j.quelle||{};
+    $('einfErgebnis').innerHTML = q.status==='fehler' ? '<div class="fehler">'+esc(q.fehler)+'</div>'
+      : '<div class="mut" style="margin-top:8px">✅ '+q.anzahl+' geprüfte Angebote übernommen'+(q.verworfen?', '+q.verworfen+' verworfen':'')+'.</div>';
+    $('einfText').value='';
+    kopfStatus(); marktListeZeigen(); angeboteZeigen();
+  }catch(e){ $('einfErgebnis').innerHTML='<div class="fehler">'+esc(e.message)+'</div>'; }
   ladeKnopf(btn,false);
 }
 
@@ -778,6 +839,7 @@ function init(){
   profilFelderBinden();
   ausschlussZeigen();
   marktListeZeigen();
+  lesezeichenZeigen();
   flyerMarktListe();
   kopfStatus();
   rezepteZeigen();

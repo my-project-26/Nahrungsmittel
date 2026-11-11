@@ -20,8 +20,10 @@ const BROWSER_HEADER = {
 const START = Date.now();
 // Unterseiten mit weiteren Angeboten (z. B. NORMA: "ab Montag", "Obst & Gemüse")
 const UNTERSEITEN = {
-  norma: /href="((?:https:\/\/www\.norma-online\.de)?\/de\/angebote\/(?:ab-[^"#?]+|obst-und-gemuese\/[^"#?]*))"/g
+  norma: /href=["']((?:https?:\/\/www\.norma-online\.de)?\/de\/angebote\/(?:ab-[^"'#?]+|obst-und-gemuese\/[^"'#?]*))["']/g
 };
+// Nur diese Märkte lassen einen Server-Abruf zu; alle anderen per Lesezeichen aus dem eigenen Browser
+const SERVER_ABRUF = ['norma'];
 const TEXT_MAERKTE = ['aldi', 'norma', 'edeka', 'rewe', 'kaufland'];
 const PROSPEKT_MAERKTE = ['lidl', 'netto', 'penny', 'denns'];
 
@@ -239,12 +241,10 @@ async function textQuelleAbrufen(markt, url) {
   let html;
   try { html = await holeSeite(url); }
   catch (e) { return { quelle: { markt, status: 'fehler', fehler: 'Seite nicht abrufbar (' + fehlerText(e) + ')', anzahl: 0 }, angebote: [] }; }
-
-  // Seiten sammeln: Hauptseite + ggf. Unterseiten (2 Ebenen, max. 20)
   const seiten = [{ url, text: htmlZuText(html) }];
   const re = UNTERSEITEN[markt];
   if (re) {
-    const basis = (String(url).match(/^https?:\/\/[^\/]+/) || [''])[0]; // ohne URL-Klasse (im n8n-Sandbox nicht vorhanden)
+    const basis = (String(url).match(/^https?:\/\/[^\/]+/) || [''])[0];
     const gesehen = new Set([url]);
     let ebene = [html];
     for (let tiefe = 0; tiefe < 2 && seiten.length < 14; tiefe++) {
@@ -259,103 +259,108 @@ async function textQuelleAbrufen(markt, url) {
       for (const g of geladen) if (g) { seiten.push({ url: g.url, text: htmlZuText(g.h) }); ebene.push(g.h); }
     }
   }
-  const gesamt = seiten.reduce((n, p) => n + p.text.length, 0);
-  if (gesamt < 500) {
-    return { quelle: { markt, status: 'fehler', fehler: 'Seite liefert keinen Text (wird per JavaScript geladen)', anzahl: 0 }, angebote: [] };
-  }
+  return textAuswerten(markt, seiten);
+}
 
-  // In Pakete à max. 80.000 Zeichen aufteilen (max. 3 KI-Aufrufe, parallel)
+// Kern: Seitentexte -> KI liest aus -> jeder Preis wird gegen den Originaltext geprüft
+async function textAuswerten(markt, seiten) {
+  const gesamt = seiten.reduce((n, p) => n + p.text.length, 0);
+  if (gesamt < 300) {
+    return { quelle: { markt, status: 'fehler', fehler: 'Kein Text auf der Seite (wird per JavaScript geladen)', anzahl: 0 }, angebote: [] };
+  }
   const pakete = []; let akt = '';
   for (const p of seiten) {
-    const t = p.text.slice(0, 80000);
-    if (akt.length + t.length > 80000 && akt) { pakete.push(akt); akt = ''; }
-    akt += '\n\n### Seite: ' + p.url + '\n' + t;
+    let t = p.text;
+    while (t.length) {
+      const stueck = t.slice(0, 70000); t = t.slice(70000);
+      if (akt.length + stueck.length > 70000 && akt) { pakete.push(akt); akt = ''; }
+      akt += '\n\n### Seite: ' + (p.url || '') + '\n' + stueck;
+    }
   }
   if (akt) pakete.push(akt);
 
-  let verworfen = 0, kiFehler = 0;
+  let verworfen = 0, kiFehler = '', roh = 0;
   const gefunden = new Map();
-  await Promise.all(pakete.slice(0, 3).map(async paket => {
+  await Promise.all(pakete.slice(0, 5).map(async paket => {
     let antwort;
     try {
-      antwort = await claude([{ type: 'text', text: 'Hier ist der Text der Angebotsseite(n) von ' + markt.toUpperCase() + ':\n\n<<<\n' + paket + '\n>>>\n\n' + ANWEISUNG_ZEILEN }], 12000);
-    } catch (e) { kiFehler++; return; }
+      antwort = await claude([{ type: 'text', text: 'Hier ist der Text der Angebotsseite(n) von ' + markt.toUpperCase() + ':\n\n<<<\n' + paket + '\n>>>\n\n' + ANWEISUNG_ZEILEN }], 16000);
+    } catch (e) { kiFehler = String(e.message || e); return; }
     const klein = paket.toLowerCase();
     for (const a of zeilenAngebote(antwort)) {
+      roh++;
       const cent = preisZuCent(a.preisRoh);
-      // Sicherheitsprüfung: Preis muss wörtlich im Seitentext stehen, nahe am Produktnamen
       if (cent === null || cent <= 0 || !preisImText(klein, cent, a.produkt)) { verworfen++; continue; }
       const gp = grundpreisPruefung(cent, a.menge, a.grundpreis);
       if (gp === 'falsch') { verworfen++; continue; }
       const id = markt + '_' + kurzId(a.produkt.toLowerCase() + a.menge + cent);
       if (!gefunden.has(id)) gefunden.set(id, {
         id, markt, produkt: a.produkt, menge: a.menge, preis: cent / 100, grundpreis: a.grundpreis,
-        gueltigVon: a.gueltigVon, gueltigBis: a.gueltigBis, quelle: 'text', geprueft: true, grundpreisCheck: gp
+        gueltigVon: a.gueltigVon, gueltigBis: a.gueltigBis, quelle: 'text', geprueft: true, grundpreisCheck: gp, erfasst: HEUTE
       });
     }
   }));
   const angebote = Array.from(gefunden.values());
   if (!angebote.length) {
-    return { quelle: { markt, status: 'fehler', fehler: kiFehler ? 'KI nicht erreichbar' : 'Keine prüfbaren Angebote im Seitentext gefunden', anzahl: 0, verworfen, seiten: seiten.length }, angebote: [] };
+    return { quelle: { markt, status: 'fehler', fehler: kiFehler ? 'KI-Fehler: ' + kiFehler : 'Keine prüfbaren Angebote im Text gefunden (KI fand ' + roh + ', alle verworfen)', anzahl: 0, verworfen, seiten: seiten.length }, angebote: [] };
   }
   return { quelle: { markt, status: 'text', anzahl: angebote.length, verworfen, seiten: seiten.length }, angebote };
 }
 
-// ------------------------------------------------------------
-// Aktuellen Prospekt-Link suchen
-// ------------------------------------------------------------
-async function prospektLinkSuchen(markt, url) {
-  if (markt !== 'lidl') return url;
-  try {
-    const html = await helpers.httpRequest({ method: 'GET', url, headers: BROWSER_HEADER, timeout: 30000, json: false });
-    const treffer = Array.from(String(html).matchAll(/href="([^"]*\/l\/prospekte\/aktionsprospekt-(\d{2})-(\d{2})-(\d{4})-(\d{2})-(\d{2})-(\d{4})[^"]*)"/g));
-    let bester = null;
-    for (const t of treffer) {
-      const von = t[4] + '-' + t[3] + '-' + t[2], bis = t[7] + '-' + t[6] + '-' + t[5];
-      const link = t[1].startsWith('http') ? t[1] : 'https://www.lidl.de' + t[1];
-      if (von <= HEUTE && HEUTE <= bis) { bester = link; break; }
-      if (!bester) bester = link;
-    }
-    return (bester || url).replace(/&amp;/g, '&');
-  } catch (e) { return url; }
-}
-
-// ------------------------------------------------------------
-// Aktionen
-// ------------------------------------------------------------
-function leererStand() { return { stand: null, quellen: [], angebote: [], prospektLinks: {} }; }
-
-// Einen einzelnen Text-Markt abrufen und in den gespeicherten Stand einsortieren
-async function marktAktualisieren(markt) {
-  if (!TEXT_MAERKTE.includes(markt)) throw new Error('Markt ' + markt + ' wird nicht online abgerufen.');
-  const url = cfg.textQuellen[markt];
-  const e = url ? await textQuelleAbrufen(markt, url)
-                : { quelle: { markt, status: 'fehler', fehler: 'Keine Adresse in der Konfiguration', anzahl: 0 }, angebote: [] };
+// Neue Angebote eines Markts mit den noch gültigen bisherigen zusammenführen
+function einsortieren(markt, e, ersetzen) {
   const d = store.angebote || leererStand();
-  d.quellen = (d.quellen || []).filter(q => q.markt !== markt).concat(e.quelle);
-  d.angebote = (d.angebote || []).filter(x => x.markt !== markt).concat(e.angebote);
+  const grenze = (() => { const x = new Date(); x.setDate(x.getDate() - 7); return x.toISOString().slice(0, 10); })();
+  const alt = ersetzen ? [] : (d.angebote || []).filter(x => x.markt === markt && (x.gueltigBis ? x.gueltigBis >= HEUTE : (x.erfasst || '') >= grenze));
+  const map = new Map(alt.map(x => [x.id, x]));
+  for (const x of e.angebote) map.set(x.id, x);
+  const alle = Array.from(map.values());
+  d.angebote = (d.angebote || []).filter(x => x.markt !== markt).concat(alle);
+  const q = Object.assign({}, e.quelle);
+  if (alle.length) { q.status = 'text'; q.anzahl = alle.length; }
+  d.quellen = (d.quellen || []).filter(x => x.markt !== markt).concat(q);
   d.stand = new Date().toISOString();
   store.angebote = d;
   return { quelle: e.quelle, daten: d };
 }
 
-// Prospekt-Links und Prospekt-Märkte aktualisieren (schnell, ohne KI)
+// Text, den die App/das Lesezeichen aus dem Browser des Nutzers schickt
+async function seiteAuswerten(b) {
+  const markt = b.markt;
+  if (!markt) throw new Error('Kein Markt angegeben.');
+  const text = String(b.text || '').replace(/[ \t]+/g, ' ').replace(/\n\s*\n+/g, '\n').slice(0, 350000);
+  const e = await textAuswerten(markt, [{ url: b.url || 'eingefügt', text }]);
+  return einsortieren(markt, e, false);
+}
+
+function leererStand() { return { stand: null, quellen: [], angebote: [], prospektLinks: {} }; }
+
+// Einen einzelnen Markt per Server abrufen (nur SERVER_ABRUF)
+async function marktAktualisieren(markt) {
+  if (!SERVER_ABRUF.includes(markt)) throw new Error(markt + ' blockiert Server-Abrufe – bitte per Lesezeichen übernehmen.');
+  const url = cfg.textQuellen[markt] || 'https://www.norma-online.de/de/angebote/';
+  const e = await textQuelleAbrufen(markt, url);
+  return einsortieren(markt, e, false);
+}
+
+// Prospekt-Links aktualisieren (schnell, ohne KI) + Liste der Server-Märkte
 async function linksAktualisieren(maerkte) {
   const gewaehlt = Array.isArray(maerkte) && maerkte.length ? maerkte : (store.maerkte || TEXT_MAERKTE.concat(PROSPEKT_MAERKTE));
   store.maerkte = gewaehlt;
   const links = await Promise.all(PROSPEKT_MAERKTE.filter(m => cfg.prospektSeiten[m]).map(async m => [m, await prospektLinkSuchen(m, cfg.prospektSeiten[m])]));
   const d = store.angebote || leererStand();
   d.prospektLinks = Object.fromEntries(links);
-  d.quellen = (d.quellen || []).filter(q => !PROSPEKT_MAERKTE.includes(q.markt));
-  for (const m of PROSPEKT_MAERKTE) if (gewaehlt.includes(m)) d.quellen.push({ markt: m, status: 'prospekt', anzahl: 0 });
+  // alte Server-Fehler (403) von Lesezeichen-Märkten entfernen
+  d.quellen = (d.quellen || []).filter(q => !PROSPEKT_MAERKTE.includes(q.markt) && !(q.status === 'fehler' && !SERVER_ABRUF.includes(q.markt)));
+  for (const m of PROSPEKT_MAERKTE) if (gewaehlt.includes(m) && !d.quellen.some(q => q.markt === m)) d.quellen.push({ markt: m, status: 'prospekt', anzahl: 0 });
   store.angebote = d;
-  return d;
+  return Object.assign({}, d, { onlineMaerkte: SERVER_ABRUF.filter(m => gewaehlt.includes(m)) });
 }
 
 // Zeitplan: alle Märkte nacheinander, solange das Zeitbudget reicht
 async function aktualisieren(maerkte) {
   await linksAktualisieren(maerkte);
-  for (const m of TEXT_MAERKTE) {
+  for (const m of SERVER_ABRUF) {
     if (!store.maerkte.includes(m)) continue;
     if (Date.now() - START > 150000) break; // Rest holt die App beim nächsten Öffnen nach
     try { await marktAktualisieren(m); } catch (e) { /* nächster Markt */ }
@@ -449,6 +454,7 @@ try {
   else if (aktion === 'aktualisieren') antwort = await aktualisieren(body.maerkte);
   else if (aktion === 'links') antwort = await linksAktualisieren(body.maerkte);
   else if (aktion === 'markt') antwort = await marktAktualisieren(body.markt);
+  else if (aktion === 'seite') antwort = await seiteAuswerten(body);
   else if (aktion === 'flyer') antwort = await flyerLesen(body);
   else if (aktion === 'vorrat') antwort = await vorratLesen(body);
   else if (aktion === 'rezepte') antwort = await rezepteErstellen(body);
