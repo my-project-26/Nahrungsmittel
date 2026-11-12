@@ -176,6 +176,7 @@
     <div class="card">
       <h2>🛒 Wo kaufst du ein?</h2>
       <div class="mut">Nur angehakte Märkte werden abgerufen und für Rezepte verwendet.</div>
+      <div class="hinweis">✉️ Für jeden angehakten Markt einmal den Newsletter mit der Kochplaner-Adresse abonnieren und danach den Bestätigungslink in der E-Mail anklicken. Aus diesen Newslettern kommen künftig die Angebote.</div>
       <div id="marktListe"></div>
     </div>
 
@@ -253,15 +254,15 @@
    Stammdaten
    ============================================================ */
 const MAERKTE = [
-  { id:'aldi',     name:'ALDI SÜD',        ort:'Niederwiesenstraße 33 u. a.', art:'lesezeichen', seite:'https://www.aldi-sued.de/de/angebote.html', prospekt:'https://www.aldi-sued.de/de/angebote.html' },
-  { id:'lidl',     name:'Lidl',            ort:'Beim Enggäßle 1 u. a.',       art:'prospekt',    seite:'https://www.lidl.de/c/billiger-montag/a10006065', prospekt:'https://www.lidl.de/c/billiger-montag/a10006065' },
-  { id:'norma',    name:'NORMA',           ort:'Harzerstraße 10',             art:'text',        seite:'https://www.norma-online.de/de/angebote/', prospekt:'https://www.norma-online.de/de/angebote/onlineprospekt/' },
-  { id:'edeka',    name:'EDEKA',           ort:'Haas / Schönauer / E center', art:'lesezeichen', seite:'https://www.edeka.de/eh/angebote.jsp', prospekt:'https://www.edeka.de/eh/angebote.jsp' },
-  { id:'rewe',     name:'REWE',            ort:'Am Krebsgraben 5',            art:'lesezeichen', seite:'https://www.rewe.de/angebote/', prospekt:'https://www.rewe.de/angebote/' },
-  { id:'kaufland', name:'Kaufland',        ort:'Neuer Markt 1',               art:'lesezeichen', seite:'https://filiale.kaufland.de/angebote/aktuelle-woche.html', prospekt:'https://filiale.kaufland.de/prospekte.html' },
-  { id:'netto',    name:'Netto',           ort:'Kirnacher Str. 75 u. a.',     art:'prospekt',    seite:'https://www.netto-online.de/filialangebote', prospekt:'https://www.netto-online.de/ueber-netto/Online-Prospekte.chtm' },
-  { id:'penny',    name:'PENNY',           ort:'Sturmbühlstraße 134',         art:'prospekt',    seite:'https://www.penny.de/angebote', prospekt:'https://www.penny.de/angebote#handout' },
-  { id:'denns',    name:"denn's BioMarkt", ort:'Bad Dürrheim',                art:'prospekt',    seite:'https://www.biomarkt.de/', prospekt:'https://www.biomarkt.de/' },
+  { id:'aldi',     name:'ALDI SÜD',        ort:'Niederwiesenstraße 33 u. a.', art:'lesezeichen', seite:'https://www.aldi-sued.de/de/angebote.html', newsletter:'https://www.aldi-sued.de/newsletter', nlHinweis:'', prospekt:'https://www.aldi-sued.de/de/angebote.html' },
+  { id:'lidl',     name:'Lidl',            ort:'Beim Enggäßle 1 u. a.',       art:'prospekt',    seite:'https://www.lidl.de/c/billiger-montag/a10006065', newsletter:'https://www.lidl.de/c/newsletter-anmeldeseite/s10005754', nlHinweis:'', prospekt:'https://www.lidl.de/c/billiger-montag/a10006065' },
+  { id:'norma',    name:'NORMA',           ort:'Harzerstraße 10',             art:'text',        seite:'https://www.norma-online.de/de/angebote/', newsletter:'https://www.norma-online.de/de/newsletter/', nlHinweis:'', prospekt:'https://www.norma-online.de/de/angebote/onlineprospekt/' },
+  { id:'edeka',    name:'EDEKA',           ort:'Haas / Schönauer / E center', art:'lesezeichen', seite:'https://www.edeka.de/eh/angebote.jsp', newsletter:'https://www.edeka.de/eh/angebote.jsp', nlHinweis:'erst Markt wählen, Newsletter-Anmeldung unten auf der Seite', prospekt:'https://www.edeka.de/eh/angebote.jsp' },
+  { id:'rewe',     name:'REWE',            ort:'Am Krebsgraben 5',            art:'lesezeichen', seite:'https://www.rewe.de/angebote/', newsletter:'https://www.rewe.de/service/newsletter/', nlHinweis:'', prospekt:'https://www.rewe.de/angebote/' },
+  { id:'kaufland', name:'Kaufland',        ort:'Neuer Markt 1',               art:'lesezeichen', seite:'https://filiale.kaufland.de/angebote/aktuelle-woche.html', newsletter:'https://filiale.kaufland.de/service/newsletter.html', nlHinweis:'', prospekt:'https://filiale.kaufland.de/prospekte.html' },
+  { id:'netto',    name:'Netto',           ort:'Kirnacher Str. 75 u. a.',     art:'prospekt',    seite:'https://www.netto-online.de/filialangebote', newsletter:'https://www.netto-online.de/', nlHinweis:'Newsletter-Anmeldung ganz unten auf der Seite', prospekt:'https://www.netto-online.de/ueber-netto/Online-Prospekte.chtm' },
+  { id:'penny',    name:'PENNY',           ort:'Sturmbühlstraße 134',         art:'prospekt',    seite:'https://www.penny.de/angebote', newsletter:'https://www.penny.de/', nlHinweis:'Newsletter-Anmeldung ganz unten auf der Seite', prospekt:'https://www.penny.de/angebote#handout' },
+  { id:'denns',    name:"denn's BioMarkt", ort:'Bad Dürrheim',                art:'prospekt',    seite:'https://www.biomarkt.de/', newsletter:'https://www.biomarkt.de/', nlHinweis:'Newsletter-Anmeldung ganz unten auf der Seite', prospekt:'https://www.biomarkt.de/' },
   { id:'biowelt',  name:'Biowelt Natur und Fein', ort:'Herdstraße 9',          art:'foto',        seite:'', prospekt:'' },
   { id:'wochenmarkt', name:'Wochenmarkt Villingen', ort:'Münsterplatz, Mi + Sa', art:'foto',     seite:'', prospekt:'' }
 ];
@@ -426,7 +427,8 @@ function marktListeZeigen(){
       hinweis = '<div class="hinweis">Kein Online-Prospekt. Angebote nur per Foto vom Handzettel – Preis bitte selbst prüfen.</div>';
     }
     const div = document.createElement('div'); div.className='markt';
-    div.innerHTML = '<input type="checkbox" '+(an?'checked':'')+'><div class="info"><b>'+esc(m.name)+'</b> <span class="mut">'+esc(m.ort)+'</span><br>'+status+hinweis+'</div>';
+    const nlLink = m.newsletter ? '<div style="margin-top:6px"><a class="btn klein sek" style="text-decoration:none" target="_blank" rel="noopener" href="'+esc(m.newsletter)+'">✉️ Newsletter anmelden</a>'+(m.nlHinweis?' <span class="mut">'+esc(m.nlHinweis)+'</span>':'')+'</div>' : '';
+    div.innerHTML = '<input type="checkbox" '+(an?'checked':'')+'><div class="info"><b>'+esc(m.name)+'</b> <span class="mut">'+esc(m.ort)+'</span><br>'+status+hinweis+nlLink+'</div>';
     div.querySelector('input').onchange = e=>{
       profil.maerkte = e.target.checked ? Array.from(new Set(profil.maerkte.concat(m.id))) : profil.maerkte.filter(x=>x!==m.id);
       speichern('profil', profil); kopfStatus(); lesezeichenZeigen();
