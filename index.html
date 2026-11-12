@@ -111,17 +111,10 @@
       <div id="quellenListe" style="margin-top:10px"></div>
     </div>
     <div class="card">
-      <h2>📌 Angebote von der Händlerseite holen</h2>
-      <div class="mut">ALDI, EDEKA, REWE und Kaufland sperren automatische Abrufe. Deshalb holst du die Seite in <b>deinem</b> Browser – die Preise werden trotzdem automatisch geprüft.</div>
-      <ol style="padding-left:20px;margin:10px 0">
-        <li><b>Einmalig:</b> Diesen Knopf in die Lesezeichenleiste ziehen (Leiste einblenden: Cmd + Shift + B):<br>
-          <a id="lesezeichenLink" class="btn klein" style="margin:6px 0;text-decoration:none" href="#" onclick="alert('Nicht klicken – in die Lesezeichenleiste ziehen.');return false">🛒 → Kochplaner</a></li>
-        <li>Angebotsseite des Markts öffnen (Links unten). Bei EDEKA/REWE/Kaufland einmal deinen Markt wählen.</li>
-        <li>Lesezeichen <b>„🛒 → Kochplaner“</b> anklicken. Die Seite scrollt kurz durch, dann erscheint oben rechts das Ergebnis.</li>
-        <li>Bei NORMA, ALDI usw. ggf. weitere Unterseiten („ab Donnerstag“, „ab Freitag“) öffnen und wieder klicken – die Angebote werden ergänzt.</li>
-      </ol>
-      <div id="seitenLinks" class="chips"></div>
-      <details style="margin-top:12px"><summary>Lesezeichen geht nicht? Text einfügen</summary>
+      <h2>✉️ Angebote aus Newslettern</h2>
+      <div class="mut">Die Händler schicken ihre Angebote an die Kochplaner-Adresse. n8n liest jede neue Mail, die KI liest Produkte und Preise aus, und jeder Preis wird gegen den Mailtext geprüft. Du musst nichts tun.</div>
+      <div id="newsletterLog" style="margin-top:10px"></div>
+      <details style="margin-top:12px"><summary>Text von einer Angebotsseite einfügen (optional)</summary>
         <div class="mut" style="margin:6px 0">Auf der Angebotsseite Cmd + A, Cmd + C – hier einfügen.</div>
         <select id="einfMarkt"></select>
         <textarea id="einfText" rows="5" style="margin-top:6px" placeholder="Seitentext hier einfügen …"></textarea>
@@ -254,15 +247,15 @@
    Stammdaten
    ============================================================ */
 const MAERKTE = [
-  { id:'aldi',     name:'ALDI SÜD',        ort:'Niederwiesenstraße 33 u. a.', art:'lesezeichen', seite:'https://www.aldi-sued.de/de/angebote.html', newsletter:'https://www.aldi-sued.de/newsletter', nlHinweis:'', prospekt:'https://www.aldi-sued.de/de/angebote.html' },
-  { id:'lidl',     name:'Lidl',            ort:'Beim Enggäßle 1 u. a.',       art:'prospekt',    seite:'https://www.lidl.de/c/billiger-montag/a10006065', newsletter:'https://www.lidl.de/c/newsletter-anmeldeseite/s10005754', nlHinweis:'', prospekt:'https://www.lidl.de/c/billiger-montag/a10006065' },
+  { id:'aldi',     name:'ALDI SÜD',        ort:'Niederwiesenstraße 33 u. a.', art:'newsletter', seite:'https://www.aldi-sued.de/de/angebote.html', newsletter:'https://www.aldi-sued.de/newsletter', nlHinweis:'', prospekt:'https://www.aldi-sued.de/de/angebote.html' },
+  { id:'lidl',     name:'Lidl',            ort:'Beim Enggäßle 1 u. a.',       art:'newsletter',    seite:'https://www.lidl.de/c/billiger-montag/a10006065', newsletter:'https://www.lidl.de/c/newsletter-anmeldeseite/s10005754', nlHinweis:'', prospekt:'https://www.lidl.de/c/billiger-montag/a10006065' },
   { id:'norma',    name:'NORMA',           ort:'Harzerstraße 10',             art:'text',        seite:'https://www.norma-online.de/de/angebote/', newsletter:'https://www.norma-online.de/de/newsletter/', nlHinweis:'', prospekt:'https://www.norma-online.de/de/angebote/onlineprospekt/' },
-  { id:'edeka',    name:'EDEKA',           ort:'Haas / Schönauer / E center', art:'lesezeichen', seite:'https://www.edeka.de/eh/angebote.jsp', newsletter:'https://www.edeka.de/eh/angebote.jsp', nlHinweis:'erst Markt wählen, Newsletter-Anmeldung unten auf der Seite', prospekt:'https://www.edeka.de/eh/angebote.jsp' },
-  { id:'rewe',     name:'REWE',            ort:'Am Krebsgraben 5',            art:'lesezeichen', seite:'https://www.rewe.de/angebote/', newsletter:'https://www.rewe.de/service/newsletter/', nlHinweis:'', prospekt:'https://www.rewe.de/angebote/' },
-  { id:'kaufland', name:'Kaufland',        ort:'Neuer Markt 1',               art:'lesezeichen', seite:'https://filiale.kaufland.de/angebote/aktuelle-woche.html', newsletter:'https://filiale.kaufland.de/service/newsletter.html', nlHinweis:'', prospekt:'https://filiale.kaufland.de/prospekte.html' },
-  { id:'netto',    name:'Netto',           ort:'Kirnacher Str. 75 u. a.',     art:'prospekt',    seite:'https://www.netto-online.de/filialangebote', newsletter:'https://www.netto-online.de/', nlHinweis:'Newsletter-Anmeldung ganz unten auf der Seite', prospekt:'https://www.netto-online.de/ueber-netto/Online-Prospekte.chtm' },
-  { id:'penny',    name:'PENNY',           ort:'Sturmbühlstraße 134',         art:'prospekt',    seite:'https://www.penny.de/angebote', newsletter:'https://www.penny.de/', nlHinweis:'Newsletter-Anmeldung ganz unten auf der Seite', prospekt:'https://www.penny.de/angebote#handout' },
-  { id:'denns',    name:"denn's BioMarkt", ort:'Bad Dürrheim',                art:'prospekt',    seite:'https://www.biomarkt.de/', newsletter:'https://www.biomarkt.de/', nlHinweis:'Newsletter-Anmeldung ganz unten auf der Seite', prospekt:'https://www.biomarkt.de/' },
+  { id:'edeka',    name:'EDEKA',           ort:'Haas / Schönauer / E center', art:'newsletter', seite:'https://www.edeka.de/eh/angebote.jsp', newsletter:'https://www.edeka.de/eh/angebote.jsp', nlHinweis:'erst Markt wählen, Newsletter-Anmeldung unten auf der Seite', prospekt:'https://www.edeka.de/eh/angebote.jsp' },
+  { id:'rewe',     name:'REWE',            ort:'Am Krebsgraben 5',            art:'newsletter', seite:'https://www.rewe.de/angebote/', newsletter:'https://www.rewe.de/service/newsletter/', nlHinweis:'', prospekt:'https://www.rewe.de/angebote/' },
+  { id:'kaufland', name:'Kaufland',        ort:'Neuer Markt 1',               art:'newsletter', seite:'https://filiale.kaufland.de/angebote/aktuelle-woche.html', newsletter:'https://filiale.kaufland.de/service/newsletter.html', nlHinweis:'', prospekt:'https://filiale.kaufland.de/prospekte.html' },
+  { id:'netto',    name:'Netto',           ort:'Kirnacher Str. 75 u. a.',     art:'newsletter',    seite:'https://www.netto-online.de/filialangebote', newsletter:'https://www.netto-online.de/', nlHinweis:'Newsletter-Anmeldung ganz unten auf der Seite', prospekt:'https://www.netto-online.de/ueber-netto/Online-Prospekte.chtm' },
+  { id:'penny',    name:'PENNY',           ort:'Sturmbühlstraße 134',         art:'newsletter',    seite:'https://www.penny.de/angebote', newsletter:'https://www.penny.de/', nlHinweis:'Newsletter-Anmeldung ganz unten auf der Seite', prospekt:'https://www.penny.de/angebote#handout' },
+  { id:'denns',    name:"denn's BioMarkt", ort:'Bad Dürrheim',                art:'newsletter',    seite:'https://www.biomarkt.de/', newsletter:'https://www.biomarkt.de/', nlHinweis:'Newsletter-Anmeldung ganz unten auf der Seite', prospekt:'https://www.biomarkt.de/' },
   { id:'biowelt',  name:'Biowelt Natur und Fein', ort:'Herdstraße 9',          art:'foto',        seite:'', prospekt:'' },
   { id:'wochenmarkt', name:'Wochenmarkt Villingen', ort:'Münsterplatz, Mi + Sa', art:'foto',     seite:'', prospekt:'' }
 ];
@@ -415,7 +408,7 @@ function marktListeZeigen(){
     const an = profil.maerkte.includes(m.id);
     let status = '';
     if(art==='text') status = '<span class="badge ok">✅ Preise geprüft (Text von der Händlerseite)</span>';
-    else if(art==='lesezeichen') status = '<span class="badge neu">📌 Per Lesezeichen von der Händlerseite – Preise werden geprüft</span>';
+    else if(art==='newsletter') status = '<span class="badge neu">✉️ Angebote kommen per Newsletter – Preise werden geprüft</span>';
     else if(art==='prospekt') status = '<span class="badge warn">⚠️ Nur Prospekt</span>';
     else status = '<span class="badge warn">📷 Nur per Foto</span>';
     let hinweis = '';
@@ -556,7 +549,16 @@ async function seiteEinfuegen(){
   ladeKnopf(btn,false);
 }
 
+function newsletterLogZeigen(){
+  const el = $('newsletterLog'); if(!el) return;
+  const log = (angDaten.newsletterLog||[]).slice(-8).reverse();
+  if(!log.length){ el.innerHTML = '<div class="mut">Noch kein Newsletter verarbeitet.</div>'; return; }
+  el.innerHTML = '<b>Zuletzt verarbeitet</b>' + log.map(l=>'<div style="margin:4px 0;font-size:14px">'+esc(marktName(l.markt))+': '+
+    (l.anzahl ? '<span class="badge ok">✅ '+l.anzahl+' Angebote</span>' : '<span class="badge warn">0 Angebote'+(l.fehler?' – '+esc(l.fehler):'')+'</span>')+
+    ' <span class="mut">'+esc(l.betreff||'')+'</span></div>').join('');
+}
 function quellenZeigen(){
+  newsletterLogZeigen();
   const el = $('quellenListe');
   const q = (angDaten.quellen||[]).filter(x=>profil.maerkte.includes(x.markt));
   if(!q.length){ el.innerHTML=''; return; }

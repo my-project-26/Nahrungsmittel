@@ -128,6 +128,7 @@ function htmlZuText(html) {
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
     .replace(/<svg[\s\S]*?<\/svg>/gi, ' ')
+    .replace(/<img[^>]*\balt="([^"]{2,})"[^>]*>/gi, ' $1 ')
     .replace(/<(br|\/p|\/div|\/li|\/h\d|\/tr|\/section|\/article)[^>]*>/gi, '\n')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&euro;/g, '€').replace(/&quot;/g, '"')
@@ -324,6 +325,31 @@ function einsortieren(markt, e, ersetzen) {
   return { quelle: e.quelle, daten: d };
 }
 
+// Newsletter-Mail (kommt vom Workflow „Kochplaner-Newsletter“)
+const ABSENDER = [['aldi', 'aldi'], ['lidl', 'lidl'], ['norma', 'norma'], ['edeka', 'edeka'], ['rewe', 'rewe'], ['kaufland', 'kaufland'], ['netto', 'netto'], ['penny', 'penny'], ['biomarkt', 'denns'], ['denns', 'denns']];
+async function newsletterAuswerten(b) {
+  const von = String(b.von || '').toLowerCase();
+  const markt = b.markt || (ABSENDER.find(x => von.includes(x[0])) || [])[1];
+  if (!markt) return { ignoriert: true, grund: 'Absender keinem Markt zugeordnet: ' + von };
+  if (/bestätig|bestaetig|confirm|verifizier|aktivier|willkommen/i.test(String(b.betreff || ''))) {
+    return { ignoriert: true, grund: 'Bestätigungs-/Willkommensmail', markt };
+  }
+  const text = ((b.betreff || '') + '\n' + (b.html ? htmlZuText(b.html) : '') + '\n' + (b.text || '')).slice(0, 300000);
+  const e = await textAuswerten(markt, [{ url: 'Newsletter: ' + (b.betreff || ''), text }]);
+  if (e.quelle) { e.quelle.herkunft = 'newsletter'; e.quelle.betreff = b.betreff || ''; e.quelle.datum = b.datum || ''; }
+  // Newsletter ohne prüfbare Preise sollen bestehende Angebote nicht überschreiben
+  if (!e.angebote.length) {
+    const d = store.angebote || leererStand();
+    d.newsletterLog = (d.newsletterLog || []).slice(-30).concat({ markt, betreff: b.betreff || '', datum: b.datum || '', anzahl: 0, fehler: e.quelle.fehler });
+    store.angebote = d;
+    return { quelle: e.quelle, daten: d };
+  }
+  const r = einsortieren(markt, e, false);
+  r.daten.newsletterLog = (r.daten.newsletterLog || []).slice(-30).concat({ markt, betreff: b.betreff || '', datum: b.datum || '', anzahl: e.angebote.length, verworfen: e.quelle.verworfen });
+  store.angebote = r.daten;
+  return r;
+}
+
 // Text, den die App/das Lesezeichen aus dem Browser des Nutzers schickt
 async function seiteAuswerten(b) {
   const markt = b.markt;
@@ -455,6 +481,7 @@ try {
   else if (aktion === 'links') antwort = await linksAktualisieren(body.maerkte);
   else if (aktion === 'markt') antwort = await marktAktualisieren(body.markt);
   else if (aktion === 'seite') antwort = await seiteAuswerten(body);
+  else if (aktion === 'newsletter') antwort = await newsletterAuswerten(body);
   else if (aktion === 'flyer') antwort = await flyerLesen(body);
   else if (aktion === 'vorrat') antwort = await vorratLesen(body);
   else if (aktion === 'rezepte') antwort = await rezepteErstellen(body);

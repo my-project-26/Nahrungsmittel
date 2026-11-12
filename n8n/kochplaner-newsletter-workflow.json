@@ -1,0 +1,94 @@
+{
+  "name": "Kochplaner-Newsletter",
+  "nodes": [
+    {
+      "parameters": {
+        "mailbox": "INBOX",
+        "postProcessAction": "read",
+        "format": "simple",
+        "options": {}
+      },
+      "id": "c2084879-e879-4dc3-8003-f8937d073626",
+      "name": "Neue Newsletter (Gmail IMAP)",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Jede neue Mail in eine Anfrage an den Kochplaner umwandeln\nreturn $input.all().map(i => {\n  const m = i.json;\n  return { json: {\n    aktion: 'newsletter',\n    von: String(m.from || ''),\n    betreff: String(m.subject || ''),\n    datum: String(m.date || ''),\n    html: String(m.textHtml || ''),\n    text: String(m.textPlain || '')\n  } };\n});"
+      },
+      "id": "8be07c34-9e89-4071-9877-176e24917975",
+      "name": "Mail aufbereiten",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/koch",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 300000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 2000
+            }
+          },
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "8be3d679-0708-49f3-b292-514bf7cee69e",
+      "name": "An Kochplaner senden",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Neue Newsletter (Gmail IMAP)": {
+      "main": [
+        [
+          {
+            "node": "Mail aufbereiten",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mail aufbereiten": {
+      "main": [
+        [
+          {
+            "node": "An Kochplaner senden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Berlin"
+  },
+  "pinData": {}
+}
